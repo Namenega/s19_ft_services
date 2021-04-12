@@ -23,7 +23,7 @@ spec:
   - port: 30004
     name: ftps-4
   type: LoadBalancer
-  loadBalancerIP: 192.168.99.10
+  loadBalancerIP: 192.168.1.240
 
 ---
 apiVersion: apps/v1

@@ -23,7 +23,7 @@ echo "###########${NC}\n"
 
 #UNCOMMENT IF NEEDED
 
-#echo "\n### ${GREEN}Delete srcs${NC} ###\n"
+echo "\n### ${GREEN}Delete srcs${NC} ###\n"
 #kubectl delete -f srcs/.
 
 echo "\n### ${GREEN}Stop minikube if running${NC} ###\n"
@@ -74,6 +74,16 @@ eval $(minikube docker-env)
 #BUILDING IMAGES
 #
 
+
+###########################
+##### MetalLB Service #####
+###########################
+
+echo "\n### ${GREEN}MetalLB Creating Object${NC} ###\n"
+
+kubectl apply -f srcs/metallb.yaml
+
+
 ########################
 ##### FTPS Service #####
 ########################
@@ -84,7 +94,7 @@ echo "#################${NC}\n"
 
 echo "\n### ${GREEN}FTPS docker build${NC} ###\n"
 
-docker build -t ftps_service srcs/ftps/. --build-arg EXTERNAL_IP=192.168.99.10 --build-arg FTPS_USERNAME=$FTPS_USERNAME --build-arg FTPS_PASSWORD=$FTPS_PASSWORD
+docker build -t ftps_service srcs/ftps/. --build-arg EXTERNAL_IP=192.168.1.240 --build-arg FTPS_USERNAME=$FTPS_USERNAME --build-arg FTPS_PASSWORD=$FTPS_PASSWORD
 
 echo "\n### ${GREEN}FTPS Creating Object${NC} ###\n"
 
@@ -168,9 +178,11 @@ echo "# Starting Nginx #"
 echo "##################${NC}\n"
 
 echo "\n### 11. ${GREEN}Nginx docker build${NC} ###\n"
+
 docker build -t nginx_service srcs/nginx/. --build-arg SSH_USERNAME=$SSH_USERNAME --build-arg SSH_PASSWORD=$SSH_PASSWORD
 
 echo "\n### ${GREEN}Nginx Creating Object${NC} ###\n"
+
 kubectl apply -f srcs/nginx/nginx.yaml
 
 
@@ -183,19 +195,13 @@ echo "# Starting Grafana #"
 echo "####################${NC}\n"
 
 echo "\n### ${GREEN}Grafana docker build${NC} ###\n"
+
 docker build -t grafana_service srcs/grafana/.
 
 echo "\n### ${GREEN}Grafana Creating Object${NC} ###\n"
+
 kubectl apply -f srcs/grafana/grafana.yaml
 
-
-###########################
-##### MetalLB Service #####
-###########################
-
-echo "\n### ${GREEN}MetalLB Creating Object${NC} ###\n"
-
-kubectl apply -f srcs/metallb.yaml
 
 #
 #LET'S GIVE TIME FOR THE SERVICES TO START
