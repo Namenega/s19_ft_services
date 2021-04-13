@@ -1,31 +1,36 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * User preferences form
+ *
+ * @package PhpMyAdmin
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Config\Forms;
 
 use PhpMyAdmin\Config\ConfigFile;
 
-use function array_merge;
-use function in_array;
-
+/**
+ * Class BaseFormList
+ * @package PhpMyAdmin\Config\Forms
+ */
 class BaseFormList
 {
     /**
      * List of all forms
-     *
-     * @var array
      */
     protected static $all = [];
 
-    /** @var string */
+    /**
+     * @var string
+     */
     protected static $ns = 'PhpMyAdmin\\Config\\Forms\\';
 
-    /** @var array */
-    private $forms;
+    /**
+     * @var array
+     */
+    private $_forms;
 
     /**
      * @return array
@@ -37,7 +42,6 @@ class BaseFormList
 
     /**
      * @param string $name Name
-     *
      * @return bool
      */
     public static function isValid($name)
@@ -47,27 +51,27 @@ class BaseFormList
 
     /**
      * @param string $name Name
-     *
-     * @return string|null
+     * @return null|string
      */
     public static function get($name)
     {
         if (static::isValid($name)) {
             return static::$ns . $name . 'Form';
         }
-
         return null;
     }
 
     /**
+     * Constructor
+     *
      * @param ConfigFile $cf Config file instance
      */
     public function __construct(ConfigFile $cf)
     {
-        $this->forms = [];
+        $this->_forms = [];
         foreach (static::$all as $form) {
             $class = static::get($form);
-            $this->forms[] = new $class($cf);
+            $this->_forms[] = new $class($cf);
         }
     }
 
@@ -78,15 +82,14 @@ class BaseFormList
      *                               on failed validation
      * @param bool $checkFormSubmit  whether check for $_POST['submit_save']
      *
-     * @return bool whether processing was successful
+     * @return boolean whether processing was successful
      */
     public function process($allowPartialSave = true, $checkFormSubmit = true)
     {
         $ret = true;
-        foreach ($this->forms as $form) {
+        foreach ($this->_forms as $form) {
             $ret = $ret && $form->process($allowPartialSave, $checkFormSubmit);
         }
-
         return $ret;
     }
 
@@ -98,10 +101,9 @@ class BaseFormList
     public function displayErrors()
     {
         $ret = '';
-        foreach ($this->forms as $form) {
+        foreach ($this->_forms as $form) {
             $ret .= $form->displayErrors();
         }
-
         return $ret;
     }
 
@@ -112,7 +114,7 @@ class BaseFormList
      */
     public function fixErrors()
     {
-        foreach ($this->forms as $form) {
+        foreach ($this->_forms as $form) {
             $form->fixErrors();
         }
     }
@@ -120,15 +122,14 @@ class BaseFormList
     /**
      * Tells whether form validation failed
      *
-     * @return bool
+     * @return boolean
      */
     public function hasErrors()
     {
         $ret = false;
-        foreach ($this->forms as $form) {
+        foreach ($this->_forms as $form) {
             $ret = $ret || $form->hasErrors();
         }
-
         return $ret;
     }
 
@@ -144,7 +145,6 @@ class BaseFormList
             $class = static::get($form);
             $names = array_merge($names, $class::getFields());
         }
-
         return $names;
     }
 }

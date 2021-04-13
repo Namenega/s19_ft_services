@@ -23,4 +23,4 @@ mysql --user=root wordpress < /wordpress.sql
 #--datadir = mysql data directory
 #
 #--bind-adress = The IP address to bind to.
-mysqld --user=root --skip-networking=0 --port=3306 --datadir=/var/lib/mysql --bind-address=0.0.0.0 #--console
+mysqld --user=root --console --skip-networking=0 --port=3306 --datadir=/var/lib/mysql --bind-address=0.0.0.0

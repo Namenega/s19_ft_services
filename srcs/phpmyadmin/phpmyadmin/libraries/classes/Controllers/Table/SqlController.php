@@ -1,74 +1,53 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Table\SqlController
+ *
+ * @package PhpMyAdmin\Controllers\Table
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Table;
 
 use PhpMyAdmin\Config\PageSettings;
-use PhpMyAdmin\DbTableExists;
-use PhpMyAdmin\Response;
 use PhpMyAdmin\SqlQueryForm;
-use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
-use PhpMyAdmin\Util;
-
-use function htmlspecialchars;
 
 /**
  * Table SQL executor
+ * @package PhpMyAdmin\Controllers\Table
  */
-final class SqlController extends AbstractController
+class SqlController extends AbstractController
 {
-    /** @var SqlQueryForm */
-    private $sqlQueryForm;
-
     /**
-     * @param Response $response
-     * @param string   $db       Database name.
-     * @param string   $table    Table name.
+     * @param array        $params       Request parameters
+     * @param SqlQueryForm $sqlQueryForm SqlQueryForm instance
+     *
+     * @return string HTML
      */
-    public function __construct($response, Template $template, $db, $table, SqlQueryForm $sqlQueryForm)
+    public function index(array $params, SqlQueryForm $sqlQueryForm): string
     {
-        parent::__construct($response, $template, $db, $table);
-        $this->sqlQueryForm = $sqlQueryForm;
-    }
+        global $url_query, $err_url, $goto, $back;
 
-    public function index(): void
-    {
-        global $err_url, $goto, $back, $db, $table, $cfg;
+        PageSettings::showGroup('Sql');
 
-        $this->addScriptFiles([
-            'makegrid.js',
-            'vendor/jquery/jquery.uitablefilter.js',
-            'vendor/stickyfill.min.js',
-            'sql.js',
-        ]);
+        require ROOT_PATH . 'libraries/tbl_common.inc.php';
 
-        $pageSettings = new PageSettings('Sql');
-        $this->response->addHTML($pageSettings->getErrorHTML());
-        $this->response->addHTML($pageSettings->getHTML());
-
-        Util::checkParameters(['db', 'table']);
-
-        $url_params = ['db' => $db, 'table' => $table];
-        $err_url = Util::getScriptNameForOption($cfg['DefaultTabTable'], 'table');
-        $err_url .= Url::getCommon($url_params, '&');
-
-        DbTableExists::check();
+        $url_query .= '&amp;goto=tbl_sql.php&amp;back=tbl_sql.php';
+        $err_url = 'tbl_sql.php' . $err_url;
 
         /**
          * After a syntax error, we return to this script
          * with the typed query in the textarea.
          */
-        $goto = Url::getFromRoute('/table/sql');
-        $back = Url::getFromRoute('/table/sql');
+        $goto = 'tbl_sql.php';
+        $back = 'tbl_sql.php';
 
-        $this->response->addHTML($this->sqlQueryForm->getHtml(
-            $_GET['sql_query'] ?? true,
+        return $sqlQueryForm->getHtml(
+            $params['sql_query'] ?? true,
             false,
-            isset($_POST['delimiter'])
-                ? htmlspecialchars($_POST['delimiter'])
+            isset($params['delimiter'])
+                ? htmlspecialchars($params['delimiter'])
                 : ';'
-        ));
+        );
     }
 }

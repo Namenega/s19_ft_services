@@ -21,7 +21,6 @@ spec:
     storage: 500Mi
   accessModes:
   - ReadWriteOnce
-  volumeMode: Filesystem
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: "/data/mysql/"

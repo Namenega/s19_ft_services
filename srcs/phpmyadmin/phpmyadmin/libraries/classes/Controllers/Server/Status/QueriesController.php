@@ -1,63 +1,28 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Displays query statistics for the server
+ *
+ * @package PhpMyAdmin\Controllers
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Server\Status;
 
-use PhpMyAdmin\DatabaseInterface;
-use PhpMyAdmin\Response;
-use PhpMyAdmin\Server\Status\Data;
-use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
-
-use function array_sum;
-use function arsort;
-use function count;
-use function str_replace;
-
+/**
+ * Class QueriesController
+ * @package PhpMyAdmin\Controllers\Server\Status
+ */
 class QueriesController extends AbstractController
 {
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param Data              $data
-     * @param DatabaseInterface $dbi
+     * @return string HTML
      */
-    public function __construct($response, Template $template, $data, $dbi)
+    public function index(): string
     {
-        parent::__construct($response, $template, $data);
-        $this->dbi = $dbi;
-    }
-
-    public function index(): void
-    {
-        global $err_url;
-
-        $err_url = Url::getFromRoute('/');
-
-        if ($this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
-
-        $this->addScriptFiles([
-            'chart.js',
-            'vendor/jqplot/jquery.jqplot.js',
-            'vendor/jqplot/plugins/jqplot.pieRenderer.js',
-            'vendor/jqplot/plugins/jqplot.highlighter.js',
-            'vendor/jqplot/plugins/jqplot.enhancedPieLegendRenderer.js',
-            'vendor/jquery/jquery.tablesorter.js',
-            'server/status/sorter.js',
-            'server/status/queries.js',
-        ]);
-
         if ($this->data->dataLoaded) {
             $hourFactor = 3600 / $this->data->status['Uptime'];
-            $usedQueries = $this->data->usedQueries;
+            $usedQueries = $this->data->used_queries;
             $totalQueries = array_sum($usedQueries);
 
             $stats = [
@@ -100,7 +65,7 @@ class QueriesController extends AbstractController
             }
         }
 
-        $this->render('server/status/queries/index', [
+        return $this->template->render('server/status/queries/index', [
             'is_data_loaded' => $this->data->dataLoaded,
             'stats' => $stats ?? null,
             'queries' => $queries ?? [],

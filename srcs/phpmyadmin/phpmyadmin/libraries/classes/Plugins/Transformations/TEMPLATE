@@ -1,4 +1,5 @@
 <?php
+// vim: expandtab sw=4 ts=4 sts=4:
 /**
  * This file contains the basic structure for a specific MIME Type and Subtype
  * transformations class.
@@ -7,7 +8,6 @@
  * @package    PhpMyAdmin-Transformations
  * @subpackage [TransformationName]
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Plugins\Transformations;
@@ -29,7 +29,7 @@ class [MIMEType][MIMESubtype][TransformationName]
      */
     public static function getMIMEType()
     {
-        return '[MIMEType]';
+        return "[MIMEType]";
     }
 
     /**
@@ -39,7 +39,7 @@ class [MIMEType][MIMESubtype][TransformationName]
      */
     public static function getMIMESubtype()
     {
-        return '[MIMESubtype]';
+        return "[MIMESubtype]";
     }
 }
 ?>

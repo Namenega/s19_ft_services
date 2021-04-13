@@ -1,6 +1,6 @@
 .icon {
   margin: 0;
-  margin-left: 0.3em;
+  margin-#{$left}: 0.3em;
   padding: 0 !important;
   width: 16px;
   height: 16px;
@@ -159,10 +159,6 @@
   background-image: url('../img/b_newdb.png');
 }
 
-.ic_db_drop {
-  background-image: url('../img/b_deltbl.png');
-}
-
 .ic_b_newtbl {
   background-image: url('../img/b_newtbl.png');
 }
@@ -209,10 +205,6 @@
 
 .ic_b_report {
   background-image: url('../img/b_report.png');
-}
-
-.ic_b_rename {
-  background-image: url('../img/b_rename.svg');
 }
 
 .ic_b_routine_add {

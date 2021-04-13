@@ -1,9 +1,11 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * This class is responsible for instantiating
  * the various components of the navigation panel
+ *
+ * @package PhpMyAdmin-navigation
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Navigation;
@@ -19,34 +21,35 @@ use PhpMyAdmin\Theme;
 use PhpMyAdmin\Url;
 use PhpMyAdmin\Util;
 
-use function count;
-use function defined;
-use function file_exists;
-use function is_bool;
-use function parse_url;
-use function strpos;
-use function trim;
-
-use const PHP_URL_HOST;
-
 /**
  * The navigation panel - displays server, db and table selection tree
+ *
+ * @package PhpMyAdmin-Navigation
  */
 class Navigation
 {
-    /** @var Template */
+    /**
+     * @var Template
+     */
     private $template;
 
-    /** @var Relation */
+    /**
+     * @var Relation
+     */
     private $relation;
 
-    /** @var DatabaseInterface */
+    /**
+     * @var DatabaseInterface
+     */
     private $dbi;
 
-    /** @var NavigationTree */
+    /**
+     * @var NavigationTree
+     */
     private $tree;
 
     /**
+     * Navigation constructor.
      * @param Template          $template Template instance
      * @param Relation          $relation Relation instance
      * @param DatabaseInterface $dbi      DatabaseInterface instance
@@ -84,7 +87,6 @@ class Navigation
             if (! Sanitize::checkLink($logo['link'], true)) {
                 $logo['link'] = 'index.php';
             }
-
             if ($cfg['NavigationLogoLinkWindow'] === 'main') {
                 if (empty(parse_url($logo['link'], PHP_URL_HOST))) {
                     $hasStartChar = strpos($logo['link'], '?');
@@ -93,7 +95,6 @@ class Navigation
                         is_bool($hasStartChar) ? '?' : Url::getArgSeparator()
                     );
                 }
-
                 $logo['attributes'] = '';
             }
 
@@ -102,14 +103,10 @@ class Navigation
             }
 
             if (! defined('PMA_DISABLE_NAVI_SETTINGS')) {
-                $pageSettings = new PageSettings('Navi', 'pma_navigation_settings');
-                $response->addHTML($pageSettings->getErrorHTML());
-                $navigationSettings = $pageSettings->getHTML();
+                $navigationSettings = PageSettings::getNaviSettings();
             }
         }
-
-        if (
-            ! $response->isAjax()
+        if (! $response->isAjax()
             || ! empty($_POST['full'])
             || ! empty($_POST['reload'])
         ) {
@@ -139,7 +136,6 @@ class Navigation
             'is_navigation_settings_enabled' => ! defined('PMA_DISABLE_NAVI_SETTINGS'),
             'navigation_settings' => $navigationSettings ?? '',
             'is_drag_drop_import_enabled' => $cfg['enable_drag_drop_import'] === true,
-            'is_mariadb' => $this->dbi->isMariaDB(),
         ]);
     }
 
@@ -160,15 +156,15 @@ class Navigation
         $tableName = null
     ) {
         $navTable = Util::backquote($GLOBALS['cfgRelation']['db'])
-            . '.' . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
-        $sqlQuery = 'INSERT INTO ' . $navTable
-            . '(`username`, `item_name`, `item_type`, `db_name`, `table_name`)'
-            . ' VALUES ('
+            . "." . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
+        $sqlQuery = "INSERT INTO " . $navTable
+            . "(`username`, `item_name`, `item_type`, `db_name`, `table_name`)"
+            . " VALUES ("
             . "'" . $this->dbi->escapeString($GLOBALS['cfg']['Server']['user']) . "',"
             . "'" . $this->dbi->escapeString($itemName) . "',"
             . "'" . $this->dbi->escapeString($itemType) . "',"
             . "'" . $this->dbi->escapeString($dbName) . "',"
-            . "'" . (! empty($tableName) ? $this->dbi->escapeString($tableName) : '' )
+            . "'" . (! empty($tableName) ? $this->dbi->escapeString($tableName) : "" )
             . "')";
         $this->relation->queryAsControlUser($sqlQuery, false);
     }
@@ -191,9 +187,9 @@ class Navigation
         $tableName = null
     ) {
         $navTable = Util::backquote($GLOBALS['cfgRelation']['db'])
-            . '.' . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
-        $sqlQuery = 'DELETE FROM ' . $navTable
-            . ' WHERE'
+            . "." . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
+        $sqlQuery = "DELETE FROM " . $navTable
+            . " WHERE"
             . " `username`='"
             . $this->dbi->escapeString($GLOBALS['cfg']['Server']['user']) . "'"
             . " AND `item_name`='" . $this->dbi->escapeString($itemName) . "'"
@@ -201,7 +197,7 @@ class Navigation
             . " AND `db_name`='" . $this->dbi->escapeString($dbName) . "'"
             . (! empty($tableName)
                 ? " AND `table_name`='" . $this->dbi->escapeString($tableName) . "'"
-                : ''
+                : ""
             );
         $this->relation->queryAsControlUser($sqlQuery, false);
     }
@@ -240,14 +236,13 @@ class Navigation
     /**
      * @param string      $database Database name
      * @param string|null $table    Table name
-     *
      * @return array
      */
     private function getHiddenItems(string $database, ?string $table): array
     {
         $navTable = Util::backquote($GLOBALS['cfgRelation']['db'])
-            . '.' . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
-        $sqlQuery = 'SELECT `item_name`, `item_type` FROM ' . $navTable
+            . "." . Util::backquote($GLOBALS['cfgRelation']['navigationhiding']);
+        $sqlQuery = "SELECT `item_name`, `item_type` FROM " . $navTable
             . " WHERE `username`='"
             . $this->dbi->escapeString($GLOBALS['cfg']['Server']['user']) . "'"
             . " AND `db_name`='" . $this->dbi->escapeString($database) . "'"
@@ -262,13 +257,10 @@ class Navigation
                 if (! isset($hidden[$type])) {
                     $hidden[$type] = [];
                 }
-
                 $hidden[$type][] = $row['item_name'];
             }
         }
-
         $this->dbi->freeResult($result);
-
         return $hidden;
     }
 
@@ -277,18 +269,17 @@ class Navigation
      */
     private function getLogoSource(): string
     {
-        global $theme;
-
-        if ($theme instanceof Theme) {
-            if (@file_exists($theme->getFsPath() . 'img/logo_left.png')) {
-                return $theme->getPath() . '/img/logo_left.png';
+        /** @var Theme|null $PMA_Theme */
+        global $PMA_Theme;
+        if ($PMA_Theme !== null) {
+            if (@file_exists($PMA_Theme->getFsPath() . 'img/logo_left.png')) {
+                return $PMA_Theme->getPath() . '/img/logo_left.png';
             }
 
-            if (@file_exists($theme->getFsPath() . 'img/pma_logo2.png')) {
-                return $theme->getPath() . '/img/pma_logo2.png';
+            if (@file_exists($PMA_Theme->getFsPath() . 'img/pma_logo2.png')) {
+                return $PMA_Theme->getPath() . '/img/pma_logo2.png';
             }
         }
-
         return '';
     }
 }

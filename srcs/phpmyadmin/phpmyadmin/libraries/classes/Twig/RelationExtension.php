@@ -1,5 +1,10 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * hold PhpMyAdmin\Twig\RelationExtension class
+ *
+ * @package PhpMyAdmin\Twig
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Twig;
@@ -8,6 +13,11 @@ use PhpMyAdmin\Relation;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * Class RelationExtension
+ *
+ * @package PhpMyAdmin\Twig
+ */
 class RelationExtension extends AbstractExtension
 {
     /**
@@ -17,10 +27,7 @@ class RelationExtension extends AbstractExtension
      */
     public function getFunctions()
     {
-        global $dbi;
-
-        $relation = new Relation($dbi);
-
+        $relation = new Relation($GLOBALS['dbi']);
         return [
             new TwigFunction(
                 'foreign_dropdown',

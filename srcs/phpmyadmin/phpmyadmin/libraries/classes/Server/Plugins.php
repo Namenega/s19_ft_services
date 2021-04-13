@@ -1,14 +1,23 @@
 <?php
-
+/**
+ * Class Plugins
+ * @package PhpMyAdmin\Server
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Server;
 
 use PhpMyAdmin\DatabaseInterface;
 
+/**
+ * Class Plugins
+ * @package PhpMyAdmin\Server
+ */
 class Plugins
 {
-    /** @var DatabaseInterface */
+    /**
+     * @var DatabaseInterface
+     */
     private $dbi;
 
     /**
@@ -30,13 +39,11 @@ class Plugins
         if (! $cfg['Server']['DisableIS']) {
             $sql = 'SELECT * FROM information_schema.PLUGINS ORDER BY PLUGIN_TYPE, PLUGIN_NAME';
         }
-
         $result = $this->dbi->query($sql);
         $plugins = [];
         while ($row = $this->dbi->fetchAssoc($result)) {
             $plugins[] = $this->mapRowToPlugin($row);
         }
-
         $this->dbi->freeResult($result);
 
         return $plugins;
@@ -44,6 +51,7 @@ class Plugins
 
     /**
      * @param array $row Row fetched from database
+     * @return Plugin
      */
     private function mapRowToPlugin(array $row): Plugin
     {

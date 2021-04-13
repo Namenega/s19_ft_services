@@ -1,16 +1,16 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * holds the ListDatabase class
+ *
+ * @package PhpMyAdmin
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin;
 
-use function array_merge;
-use function is_array;
-use function is_string;
-use function preg_match;
-use function sort;
-use function strlen;
-use function usort;
+use PhpMyAdmin\ListAbstract;
+use PhpMyAdmin\Util;
 
 /**
  * handles database lists
@@ -20,16 +20,20 @@ use function usort;
  * </code>
  *
  * @todo this object should be attached to the PMA_Server object
+ *
+ * @package PhpMyAdmin
+ * @since   phpMyAdmin 2.9.10
  */
 class ListDatabase extends ListAbstract
 {
+    /**
+     * Constructor
+     */
     public function __construct()
     {
-        global $dbi;
-
         parent::__construct();
 
-        $checkUserPrivileges = new CheckUserPrivileges($dbi);
+        $checkUserPrivileges = new CheckUserPrivileges($GLOBALS['dbi']);
         $checkUserPrivileges->getPrivileges();
 
         $this->build();
@@ -47,11 +51,9 @@ class ListDatabase extends ListAbstract
         }
 
         foreach ($this->getArrayCopy() as $key => $db) {
-            if (! preg_match('/' . $GLOBALS['cfg']['Server']['hide_db'] . '/', $db)) {
-                continue;
+            if (preg_match('/' . $GLOBALS['cfg']['Server']['hide_db'] . '/', $db)) {
+                $this->offsetUnset($key);
             }
-
-            $this->offsetUnset($key);
         }
     }
 
@@ -64,19 +66,17 @@ class ListDatabase extends ListAbstract
      */
     protected function retrieve($like_db_name = null)
     {
-        global $dbi;
-
         $database_list = [];
-        $command = '';
+        $command = "";
         if (! $GLOBALS['cfg']['Server']['DisableIS']) {
-            $command .= 'SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA`';
-            if ($like_db_name !== null) {
+            $command .= "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA`";
+            if (null !== $like_db_name) {
                 $command .= " WHERE `SCHEMA_NAME` LIKE '" . $like_db_name . "'";
             }
         } else {
-            if ($GLOBALS['dbs_to_test'] === false || $like_db_name !== null) {
-                $command .= 'SHOW DATABASES';
-                if ($like_db_name !== null) {
+            if ($GLOBALS['dbs_to_test'] === false || null !== $like_db_name) {
+                $command .= "SHOW DATABASES";
+                if (null !== $like_db_name) {
                     $command .= " LIKE '" . $like_db_name . "'";
                 }
             } else {
@@ -90,7 +90,7 @@ class ListDatabase extends ListAbstract
         }
 
         if ($command) {
-            $database_list = $dbi->fetchResult(
+            $database_list = $GLOBALS['dbi']->fetchResult(
                 $command,
                 null,
                 null
@@ -126,12 +126,11 @@ class ListDatabase extends ListAbstract
     /**
      * checks the only_db configuration
      *
-     * @return bool false if there is no only_db, otherwise true
+     * @return boolean false if there is no only_db, otherwise true
      */
     protected function checkOnlyDatabase()
     {
-        if (
-            is_string($GLOBALS['cfg']['Server']['only_db'])
+        if (is_string($GLOBALS['cfg']['Server']['only_db'])
             && strlen($GLOBALS['cfg']['Server']['only_db']) > 0
         ) {
             $GLOBALS['cfg']['Server']['only_db'] = [

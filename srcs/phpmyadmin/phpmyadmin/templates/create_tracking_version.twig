@@ -1,11 +1,11 @@
 <div id="div_create_version">
-    <form method="post" action="{{ url(route, url_params) }}">
+    <form method="post" action="{{ url_query|raw }}">
         {{ get_hidden_inputs(db) }}
         {% for selected_table in selected %}
             <input type="hidden" name="selected[]" value="{{ selected_table }}">
         {% endfor %}
 
-        <fieldset class="pma-fieldset">
+        <fieldset>
             <legend>
                 {% if selected|length == 1 %}
                     {{ 'Create version %1$s of %2$s'|trans|format(
@@ -71,7 +71,7 @@
             TRUNCATE<br>
         </fieldset>
 
-        <fieldset class="pma-fieldset tblFooters">
+        <fieldset class="tblFooters">
             <input type="hidden" name="submit_create_version" value="1">
             <input class="btn btn-primary" type="submit" value="{% trans 'Create version' %}">
         </fieldset>

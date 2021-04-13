@@ -1,8 +1,11 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * SignOn Authentication plugin for phpMyAdmin
+ *
+ * @package    PhpMyAdmin-Authentication
+ * @subpackage SignOn
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Plugins\Auth;
@@ -11,29 +14,17 @@ use PhpMyAdmin\Core;
 use PhpMyAdmin\Plugins\AuthenticationPlugin;
 use PhpMyAdmin\Util;
 
-use function array_merge;
-use function defined;
-use function file_exists;
-use function in_array;
-use function session_get_cookie_params;
-use function session_id;
-use function session_name;
-use function session_set_cookie_params;
-use function session_start;
-use function session_write_close;
-use function version_compare;
-
-use const PHP_VERSION;
-
 /**
  * Handles the SignOn authentication method
+ *
+ * @package PhpMyAdmin-Authentication
  */
 class AuthenticationSignon extends AuthenticationPlugin
 {
     /**
      * Displays authentication form
      *
-     * @return bool always true (no return indeed)
+     * @return boolean   always true (no return indeed)
      */
     public function showLoginForm()
     {
@@ -46,17 +37,18 @@ class AuthenticationSignon extends AuthenticationPlugin
 
         if (! defined('TESTSUITE')) {
             exit;
+        } else {
+            return false;
         }
-
-        return false;
     }
 
     /**
      * Set cookie params
      *
      * @param array $sessionCookieParams The cookie params
+     * @return void
      */
-    public function setCookieParams(?array $sessionCookieParams = null): void
+    public function setCookieParams(array $sessionCookieParams = null): void
     {
         /* Session cookie params from config */
         if ($sessionCookieParams === null) {
@@ -64,44 +56,35 @@ class AuthenticationSignon extends AuthenticationPlugin
         }
 
         /* Sanitize cookie params */
-        $defaultCookieParams = static function (string $key) {
+        $defaultCookieParams = function ($key) {
             switch ($key) {
                 case 'lifetime':
                     return 0;
-
                 case 'path':
                     return '/';
-
                 case 'domain':
                     return '';
-
                 case 'secure':
                     return false;
-
                 case 'httponly':
                     return false;
             }
-
             return null;
         };
 
         foreach (['lifetime', 'path', 'domain', 'secure', 'httponly'] as $key) {
-            if (isset($sessionCookieParams[$key])) {
-                continue;
+            if (! isset($sessionCookieParams[$key])) {
+                $sessionCookieParams[$key] = $defaultCookieParams($key);
             }
-
-            $sessionCookieParams[$key] = $defaultCookieParams($key);
         }
 
-        if (
-            isset($sessionCookieParams['samesite'])
-            && ! in_array($sessionCookieParams['samesite'], ['Lax', 'Strict'])
-        ) {
+        if (isset($sessionCookieParams['samesite'])
+            && ! in_array($sessionCookieParams['samesite'], ['Lax', 'Strict'])) {
                 // Not a valid value for samesite
                 unset($sessionCookieParams['samesite']);
         }
 
-        if (version_compare(PHP_VERSION, '7.3.0', '>=')) {
+        if (version_compare(phpversion(), '7.3.0', '>=')) {
             session_set_cookie_params($sessionCookieParams);
         } else {
             session_set_cookie_params(
@@ -117,14 +100,13 @@ class AuthenticationSignon extends AuthenticationPlugin
     /**
      * Gets authentication credentials
      *
-     * @return bool whether we get authentication settings or not
+     * @return boolean   whether we get authentication settings or not
      */
     public function readCredentials()
     {
         /* Check if we're using same signon server */
         $signon_url = $GLOBALS['cfg']['Server']['SignonURL'];
-        if (
-            isset($_SESSION['LAST_SIGNON_URL'])
+        if (isset($_SESSION['LAST_SIGNON_URL'])
             && $_SESSION['LAST_SIGNON_URL'] != $signon_url
         ) {
             return false;
@@ -156,10 +138,9 @@ class AuthenticationSignon extends AuthenticationPlugin
                     . ' ' . $script_name
                 );
             }
-
             include $script_name;
 
-            [$this->user, $this->password]
+            list ($this->user, $this->password)
                 = get_login_credentials($GLOBALS['cfg']['Server']['user']);
         } elseif (isset($_COOKIE[$session_name])) { /* Does session exist? */
             /* End current session */
@@ -169,7 +150,6 @@ class AuthenticationSignon extends AuthenticationPlugin
             if (! defined('TESTSUITE')) {
                 session_write_close();
             }
-
             /* Load single signon session */
             if (! defined('TESTSUITE')) {
                 $this->setCookieParams();
@@ -185,11 +165,9 @@ class AuthenticationSignon extends AuthenticationPlugin
             if (isset($_SESSION['PMA_single_signon_user'])) {
                 $this->user = $_SESSION['PMA_single_signon_user'];
             }
-
             if (isset($_SESSION['PMA_single_signon_password'])) {
                 $this->password = $_SESSION['PMA_single_signon_password'];
             }
-
             if (isset($_SESSION['PMA_single_signon_host'])) {
                 $single_signon_host = $_SESSION['PMA_single_signon_host'];
             }
@@ -221,14 +199,10 @@ class AuthenticationSignon extends AuthenticationPlugin
             /* Restart phpMyAdmin session */
             if (! defined('TESTSUITE')) {
                 $this->setCookieParams($oldCookieParams);
-                if ($old_session !== null) {
-                    session_name($old_session);
-                }
-
+                session_name($old_session);
                 if (! empty($old_id)) {
                     session_id($old_id);
                 }
-
                 session_start();
             }
 
@@ -298,7 +272,6 @@ class AuthenticationSignon extends AuthenticationPlugin
             /* Set error message */
             $_SESSION['PMA_single_signon_error_message'] = $this->getErrorMessage($failure);
         }
-
         $this->showLoginForm();
     }
 

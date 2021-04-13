@@ -1,39 +1,40 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Server config checks management
+ *
+ * @package PhpMyAdmin
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Config;
 
+use PhpMyAdmin\Config\ConfigFile;
+use PhpMyAdmin\Config\Descriptions;
 use PhpMyAdmin\Core;
 use PhpMyAdmin\Sanitize;
 use PhpMyAdmin\Setup\Index as SetupIndex;
 use PhpMyAdmin\Url;
 use PhpMyAdmin\Util;
 
-use function count;
-use function function_exists;
-use function htmlspecialchars;
-use function implode;
-use function ini_get;
-use function preg_match;
-use function sprintf;
-use function strlen;
-
 /**
  * Performs various compatibility, security and consistency checks on current config
  *
  * Outputs results to message list, must be called between SetupIndex::messagesBegin()
  * and SetupIndex::messagesEnd()
+ *
+ * @package PhpMyAdmin
  */
 class ServerConfigChecks
 {
-    /** @var ConfigFile configurations being checked */
+    /**
+     * @var ConfigFile configurations being checked
+     */
     protected $cfg;
 
     /**
+     * Constructor.
+     *
      * @param ConfigFile $cfg Configuration
      */
     public function __construct(ConfigFile $cfg)
@@ -52,7 +53,7 @@ class ServerConfigChecks
         $blowfishSecretSet = false;
         $cookieAuthUsed = false;
 
-        [$cookieAuthUsed, $blowfishSecret, $blowfishSecretSet]
+        list($cookieAuthUsed, $blowfishSecret, $blowfishSecretSet)
             = $this->performConfigChecksServers(
                 $cookieAuthUsed,
                 $blowfishSecret,
@@ -65,8 +66,10 @@ class ServerConfigChecks
             $blowfishSecret
         );
 
+        //
         // $cfg['AllowArbitraryServer']
         // should be disabled
+        //
         if ($this->cfg->getValue('AllowArbitraryServer')) {
             $sAllowArbitraryServerWarn = sprintf(
                 __(
@@ -100,8 +103,10 @@ class ServerConfigChecks
             . 'your server.'
         );
 
+        //
         // $cfg['SaveDir']
         // should not be world-accessible
+        //
         if ($this->cfg->getValue('SaveDir') != '') {
             SetupIndex::messagesSet(
                 'notice',
@@ -111,8 +116,10 @@ class ServerConfigChecks
             );
         }
 
+        //
         // $cfg['TempDir']
         // should not be world-accessible
+        //
         if ($this->cfg->getValue('TempDir') != '') {
             SetupIndex::messagesSet(
                 'notice',
@@ -128,9 +135,9 @@ class ServerConfigChecks
     /**
      * Check config of servers
      *
-     * @param bool   $cookieAuthUsed    Cookie auth is used
-     * @param string $blowfishSecret    Blowfish secret
-     * @param bool   $blowfishSecretSet Blowfish secret set
+     * @param boolean $cookieAuthUsed    Cookie auth is used
+     * @param string  $blowfishSecret    Blowfish secret
+     * @param boolean $blowfishSecretSet Blowfish secret set
      *
      * @return array
      */
@@ -142,7 +149,7 @@ class ServerConfigChecks
         $serverCnt = $this->cfg->getServerCount();
         for ($i = 1; $i <= $serverCnt; $i++) {
             $cookieAuthServer
-                = ($this->cfg->getValue('Servers/' . $i . '/auth_type') === 'cookie');
+                = ($this->cfg->getValue("Servers/$i/auth_type") == 'cookie');
             $cookieAuthUsed |= $cookieAuthServer;
             $serverName = $this->performConfigChecksServersGetServerName(
                 $this->cfg->getServerName($i),
@@ -150,20 +157,22 @@ class ServerConfigChecks
             );
             $serverName = htmlspecialchars($serverName);
 
-            [$blowfishSecret, $blowfishSecretSet]
+            list($blowfishSecret, $blowfishSecretSet)
                 = $this->performConfigChecksServersSetBlowfishSecret(
                     $blowfishSecret,
                     $cookieAuthServer,
                     $blowfishSecretSet
                 );
 
+            //
             // $cfg['Servers'][$i]['ssl']
             // should be enabled if possible
-            if (! $this->cfg->getValue('Servers/' . $i . '/ssl')) {
-                $title = Descriptions::get('Servers/1/ssl') . ' (' . $serverName . ')';
+            //
+            if (! $this->cfg->getValue("Servers/$i/ssl")) {
+                $title = Descriptions::get('Servers/1/ssl') . " ($serverName)";
                 SetupIndex::messagesSet(
                     'notice',
-                    'Servers/' . $i . '/ssl',
+                    "Servers/$i/ssl",
                     $title,
                     __(
                         'You should use SSL connections if your database server '
@@ -171,7 +180,6 @@ class ServerConfigChecks
                     )
                 );
             }
-
             $sSecurityInfoMsg = Sanitize::sanitizeMessage(sprintf(
                 __(
                     'If you feel this is necessary, use additional protection settings - '
@@ -185,18 +193,19 @@ class ServerConfigChecks
                 '[/a]'
             ));
 
+            //
             // $cfg['Servers'][$i]['auth_type']
             // warn about full user credentials if 'auth_type' is 'config'
-            if (
-                $this->cfg->getValue('Servers/' . $i . '/auth_type') === 'config'
-                && $this->cfg->getValue('Servers/' . $i . '/user') != ''
-                && $this->cfg->getValue('Servers/' . $i . '/password') != ''
+            //
+            if ($this->cfg->getValue("Servers/$i/auth_type") == 'config'
+                && $this->cfg->getValue("Servers/$i/user") != ''
+                && $this->cfg->getValue("Servers/$i/password") != ''
             ) {
                 $title = Descriptions::get('Servers/1/auth_type')
-                    . ' (' . $serverName . ')';
+                    . " ($serverName)";
                 SetupIndex::messagesSet(
                     'notice',
-                    'Servers/' . $i . '/auth_type',
+                    "Servers/$i/auth_type",
                     $title,
                     Sanitize::sanitizeMessage(sprintf(
                         __(
@@ -213,27 +222,25 @@ class ServerConfigChecks
                 );
             }
 
+            //
             // $cfg['Servers'][$i]['AllowRoot']
             // $cfg['Servers'][$i]['AllowNoPassword']
             // serious security flaw
-            if (
-                ! $this->cfg->getValue('Servers/' . $i . '/AllowRoot')
-                || ! $this->cfg->getValue('Servers/' . $i . '/AllowNoPassword')
+            //
+            if ($this->cfg->getValue("Servers/$i/AllowRoot")
+                && $this->cfg->getValue("Servers/$i/AllowNoPassword")
             ) {
-                continue;
+                $title = Descriptions::get('Servers/1/AllowNoPassword')
+                    . " ($serverName)";
+                SetupIndex::messagesSet(
+                    'notice',
+                    "Servers/$i/AllowNoPassword",
+                    $title,
+                    __('You allow for connecting to the server without a password.')
+                    . ' ' . $sSecurityInfoMsg
+                );
             }
-
-            $title = Descriptions::get('Servers/1/AllowNoPassword')
-                . ' (' . $serverName . ')';
-            SetupIndex::messagesSet(
-                'notice',
-                'Servers/' . $i . '/AllowNoPassword',
-                $title,
-                __('You allow for connecting to the server without a password.')
-                . ' ' . $sSecurityInfoMsg
-            );
         }
-
         return [
             $cookieAuthUsed,
             $blowfishSecret,
@@ -244,9 +251,9 @@ class ServerConfigChecks
     /**
      * Set blowfish secret
      *
-     * @param string|null $blowfishSecret    Blowfish secret
-     * @param bool        $cookieAuthServer  Cookie auth is used
-     * @param bool        $blowfishSecretSet Blowfish secret set
+     * @param string  $blowfishSecret    Blowfish secret
+     * @param boolean $cookieAuthServer  Cookie auth is used
+     * @param boolean $blowfishSecretSet Blowfish secret set
      *
      * @return array
      */
@@ -254,12 +261,11 @@ class ServerConfigChecks
         $blowfishSecret,
         $cookieAuthServer,
         $blowfishSecretSet
-    ): array {
+    ) {
         if ($cookieAuthServer && $blowfishSecret === null) {
             $blowfishSecretSet = true;
             $this->cfg->set('blowfish_secret', Util::generateRandom(32));
         }
-
         return [
             $blowfishSecret,
             $blowfishSecretSet,
@@ -278,10 +284,10 @@ class ServerConfigChecks
         $serverName,
         $serverId
     ) {
-        if ($serverName === 'localhost') {
-            return $serverName . ' [' . $serverId . ']';
+        if ($serverName == 'localhost') {
+            $serverName .= " [$serverId]";
+            return $serverName;
         }
-
         return $serverName;
     }
 
@@ -304,8 +310,10 @@ class ServerConfigChecks
      */
     protected function performConfigChecksServersZipdump()
     {
+        //
         // $cfg['ZipDump']
         // requires zip_open in import
+        //
         if ($this->cfg->getValue('ZipDump') && ! $this->functionExists('zip_open')) {
             SetupIndex::messagesSet(
                 'error',
@@ -323,34 +331,34 @@ class ServerConfigChecks
             );
         }
 
+        //
         // $cfg['ZipDump']
         // requires gzcompress in export
-        if (! $this->cfg->getValue('ZipDump') || $this->functionExists('gzcompress')) {
-            return;
+        //
+        if ($this->cfg->getValue('ZipDump') && ! $this->functionExists('gzcompress')) {
+            SetupIndex::messagesSet(
+                'error',
+                'ZipDump_export',
+                Descriptions::get('ZipDump'),
+                Sanitize::sanitizeMessage(sprintf(
+                    __(
+                        '%sZip compression%s requires functions (%s) which are unavailable on '
+                        . 'this system.'
+                    ),
+                    '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
+                    '[/a]',
+                    'gzcompress'
+                ))
+            );
         }
-
-        SetupIndex::messagesSet(
-            'error',
-            'ZipDump_export',
-            Descriptions::get('ZipDump'),
-            Sanitize::sanitizeMessage(sprintf(
-                __(
-                    '%sZip compression%s requires functions (%s) which are unavailable on '
-                    . 'this system.'
-                ),
-                '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
-                '[/a]',
-                'gzcompress'
-            ))
-        );
     }
 
     /**
      * Check config of servers
      *
-     * @param bool   $cookieAuthUsed    Cookie auth is used
-     * @param bool   $blowfishSecretSet Blowfish secret set
-     * @param string $blowfishSecret    Blowfish secret
+     * @param boolean $cookieAuthUsed    Cookie auth is used
+     * @param boolean $blowfishSecretSet Blowfish secret set
+     * @param string  $blowfishSecret    Blowfish secret
      *
      * @return void
      */
@@ -359,55 +367,53 @@ class ServerConfigChecks
         $blowfishSecretSet,
         $blowfishSecret
     ) {
+        //
         // $cfg['blowfish_secret']
         // it's required for 'cookie' authentication
-        if (! $cookieAuthUsed) {
-            return;
-        }
-
-        if ($blowfishSecretSet) {
-            // 'cookie' auth used, blowfish_secret was generated
-            SetupIndex::messagesSet(
-                'notice',
-                'blowfish_secret_created',
-                Descriptions::get('blowfish_secret'),
-                Sanitize::sanitizeMessage(__(
-                    'You didn\'t have blowfish secret set and have enabled '
-                    . '[kbd]cookie[/kbd] authentication, so a key was automatically '
-                    . 'generated for you. It is used to encrypt cookies; you don\'t need to '
-                    . 'remember it.'
-                ))
-            );
-        } else {
-            $blowfishWarnings = [];
-            // check length
-            if (strlen($blowfishSecret) < 32) {
-                // too short key
-                $blowfishWarnings[] = __(
-                    'Key is too short, it should have at least 32 characters.'
-                );
-            }
-
-            // check used characters
-            $hasDigits = (bool) preg_match('/\d/', $blowfishSecret);
-            $hasChars = (bool) preg_match('/\S/', $blowfishSecret);
-            $hasNonword = (bool) preg_match('/\W/', $blowfishSecret);
-            if (! $hasDigits || ! $hasChars || ! $hasNonword) {
-                $blowfishWarnings[] = Sanitize::sanitizeMessage(
-                    __(
-                        'Key should contain letters, numbers [em]and[/em] '
-                        . 'special characters.'
-                    )
-                );
-            }
-
-            if (! empty($blowfishWarnings)) {
+        //
+        if ($cookieAuthUsed) {
+            if ($blowfishSecretSet) {
+                // 'cookie' auth used, blowfish_secret was generated
                 SetupIndex::messagesSet(
-                    'error',
-                    'blowfish_warnings' . count($blowfishWarnings),
+                    'notice',
+                    'blowfish_secret_created',
                     Descriptions::get('blowfish_secret'),
-                    implode('<br>', $blowfishWarnings)
+                    Sanitize::sanitizeMessage(__(
+                        'You didn\'t have blowfish secret set and have enabled '
+                        . '[kbd]cookie[/kbd] authentication, so a key was automatically '
+                        . 'generated for you. It is used to encrypt cookies; you don\'t need to '
+                        . 'remember it.'
+                    ))
                 );
+            } else {
+                $blowfishWarnings = [];
+                // check length
+                if (strlen($blowfishSecret) < 32) {
+                    // too short key
+                    $blowfishWarnings[] = __(
+                        'Key is too short, it should have at least 32 characters.'
+                    );
+                }
+                // check used characters
+                $hasDigits = (bool) preg_match('/\d/', $blowfishSecret);
+                $hasChars = (bool) preg_match('/\S/', $blowfishSecret);
+                $hasNonword = (bool) preg_match('/\W/', $blowfishSecret);
+                if (! $hasDigits || ! $hasChars || ! $hasNonword) {
+                    $blowfishWarnings[] = Sanitize::sanitizeMessage(
+                        __(
+                            'Key should contain letters, numbers [em]and[/em] '
+                            . 'special characters.'
+                        )
+                    );
+                }
+                if (! empty($blowfishWarnings)) {
+                    SetupIndex::messagesSet(
+                        'error',
+                        'blowfish_warnings' . count($blowfishWarnings),
+                        Descriptions::get('blowfish_secret'),
+                        implode('<br>', $blowfishWarnings)
+                    );
+                }
             }
         }
     }
@@ -419,12 +425,12 @@ class ServerConfigChecks
      */
     protected function performConfigChecksLoginCookie()
     {
+        //
         // $cfg['LoginCookieValidity']
         // value greater than session.gc_maxlifetime will cause
         // random session invalidation after that time
         $loginCookieValidity = $this->cfg->getValue('LoginCookieValidity');
-        if (
-            $loginCookieValidity > ini_get('session.gc_maxlifetime')
+        if ($loginCookieValidity > ini_get('session.gc_maxlifetime')
         ) {
             SetupIndex::messagesSet(
                 'error',
@@ -445,8 +451,10 @@ class ServerConfigChecks
             );
         }
 
+        //
         // $cfg['LoginCookieValidity']
         // should be at most 1800 (30 min)
+        //
         if ($loginCookieValidity > 1800) {
             SetupIndex::messagesSet(
                 'notice',
@@ -464,32 +472,31 @@ class ServerConfigChecks
             );
         }
 
+        //
         // $cfg['LoginCookieValidity']
         // $cfg['LoginCookieStore']
         // LoginCookieValidity must be less or equal to LoginCookieStore
-        if (
-            ($this->cfg->getValue('LoginCookieStore') == 0)
-            || ($loginCookieValidity <= $this->cfg->getValue('LoginCookieStore'))
+        //
+        if (($this->cfg->getValue('LoginCookieStore') != 0)
+            && ($loginCookieValidity > $this->cfg->getValue('LoginCookieStore'))
         ) {
-            return;
+            SetupIndex::messagesSet(
+                'error',
+                'LoginCookieValidity',
+                Descriptions::get('LoginCookieValidity'),
+                Sanitize::sanitizeMessage(sprintf(
+                    __(
+                        'If using [kbd]cookie[/kbd] authentication and %sLogin cookie store%s '
+                        . 'is not 0, %sLogin cookie validity%s must be set to a value less or '
+                        . 'equal to it.'
+                    ),
+                    '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Security]',
+                    '[/a]',
+                    '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Security]',
+                    '[/a]'
+                ))
+            );
         }
-
-        SetupIndex::messagesSet(
-            'error',
-            'LoginCookieValidity',
-            Descriptions::get('LoginCookieValidity'),
-            Sanitize::sanitizeMessage(sprintf(
-                __(
-                    'If using [kbd]cookie[/kbd] authentication and %sLogin cookie store%s '
-                    . 'is not 0, %sLogin cookie validity%s must be set to a value less or '
-                    . 'equal to it.'
-                ),
-                '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Security]',
-                '[/a]',
-                '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Security]',
-                '[/a]'
-            ))
-        );
     }
 
     /**
@@ -499,37 +506,36 @@ class ServerConfigChecks
      */
     protected function performConfigChecksServerBZipdump()
     {
+        //
         // $cfg['BZipDump']
         // requires bzip2 functions
-        if (
-            ! $this->cfg->getValue('BZipDump')
-            || ($this->functionExists('bzopen') && $this->functionExists('bzcompress'))
+        //
+        if ($this->cfg->getValue('BZipDump')
+            && (! $this->functionExists('bzopen') || ! $this->functionExists('bzcompress'))
         ) {
-            return;
-        }
-
-        $functions = $this->functionExists('bzopen')
-            ? '' :
-            'bzopen';
-        $functions .= $this->functionExists('bzcompress')
-            ? ''
-            : ($functions ? ', ' : '') . 'bzcompress';
-        SetupIndex::messagesSet(
-            'error',
-            'BZipDump',
-            Descriptions::get('BZipDump'),
-            Sanitize::sanitizeMessage(
-                sprintf(
-                    __(
-                        '%1$sBzip2 compression and decompression%2$s requires functions (%3$s) which '
-                         . 'are unavailable on this system.'
-                    ),
-                    '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
-                    '[/a]',
-                    $functions
+            $functions = $this->functionExists('bzopen')
+                ? '' :
+                'bzopen';
+            $functions .= $this->functionExists('bzcompress')
+                ? ''
+                : ($functions ? ', ' : '') . 'bzcompress';
+            SetupIndex::messagesSet(
+                'error',
+                'BZipDump',
+                Descriptions::get('BZipDump'),
+                Sanitize::sanitizeMessage(
+                    sprintf(
+                        __(
+                            '%1$sBzip2 compression and decompression%2$s requires functions (%3$s) which '
+                             . 'are unavailable on this system.'
+                        ),
+                        '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
+                        '[/a]',
+                        $functions
+                    )
                 )
-            )
-        );
+            );
+        }
     }
 
     /**
@@ -539,29 +545,28 @@ class ServerConfigChecks
      */
     protected function performConfigChecksServerGZipdump()
     {
+        //
         // $cfg['GZipDump']
         // requires zlib functions
-        if (
-            ! $this->cfg->getValue('GZipDump')
-            || ($this->functionExists('gzopen') && $this->functionExists('gzencode'))
+        //
+        if ($this->cfg->getValue('GZipDump')
+            && (! $this->functionExists('gzopen') || ! $this->functionExists('gzencode'))
         ) {
-            return;
+            SetupIndex::messagesSet(
+                'error',
+                'GZipDump',
+                Descriptions::get('GZipDump'),
+                Sanitize::sanitizeMessage(sprintf(
+                    __(
+                        '%1$sGZip compression and decompression%2$s requires functions (%3$s) which '
+                        . 'are unavailable on this system.'
+                    ),
+                    '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
+                    '[/a]',
+                    'gzencode'
+                ))
+            );
         }
-
-        SetupIndex::messagesSet(
-            'error',
-            'GZipDump',
-            Descriptions::get('GZipDump'),
-            Sanitize::sanitizeMessage(sprintf(
-                __(
-                    '%1$sGZip compression and decompression%2$s requires functions (%3$s) which '
-                    . 'are unavailable on this system.'
-                ),
-                '[a@' . Url::getCommon(['page' => 'form', 'formset' => 'Features']) . '#tab_Import_export]',
-                '[/a]',
-                'gzencode'
-            ))
-        );
     }
 
     /**
@@ -569,7 +574,7 @@ class ServerConfigChecks
      *
      * @param string $name Function name
      *
-     * @return bool
+     * @return boolean
      */
     protected function functionExists($name)
     {

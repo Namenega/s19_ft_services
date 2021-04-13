@@ -1,23 +1,20 @@
-<div class=container-fluid>
-<div class="row">
-  <h2>
-    {{ get_image('s_asci') }}
-    {% trans 'Character sets and collations' %}
-  </h2>
-</div>
+<h2>
+  {{ get_image('s_asci') }}
+  {% trans 'Character sets and collations' %}
+</h2>
 
-<div class="table-responsive">
-  <table class="table table-light table-striped table-hover table-sm w-auto">
-    <thead class="table-light">
+<div id="div_mysql_charset_collations">
+  <table class="data noclick">
+    <thead>
       <tr>
-        <th scope="col">{% trans 'Collation' %}</th>
-        <th scope="col">{% trans 'Description' %}</th>
+        <th id="collationHeader">{% trans 'Collation' %}</th>
+        <th>{% trans 'Description' %}</th>
       </tr>
     </thead>
 
     {% for charset in charsets %}
       <tr>
-        <th colspan="2" class="table-primary">
+        <th colspan="2" class="right">
           {{ charset.name }}
           {% if charset.description is not empty %}
             (<em>{{ charset.description }}</em>)
@@ -25,17 +22,11 @@
         </th>
       </tr>
       {% for collation in charset.collations %}
-        <tr{{ collation.is_default ? ' class="table-info"' }}>
-          <td>
-            {{ collation.name }}
-            {% if collation.is_default %}
-              <span class="visually-hidden">{% trans '(default)' %}</span>
-            {% endif %}
-          </td>
+        <tr{{ collation.is_default ? ' class="marked"' }}>
+          <td>{{ collation.name }}</td>
           <td>{{ collation.description }}</td>
         </tr>
       {% endfor %}
     {% endfor %}
   </table>
-</div>
 </div>

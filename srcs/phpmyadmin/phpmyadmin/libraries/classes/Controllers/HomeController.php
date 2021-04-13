@@ -1,5 +1,10 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\HomeController
+ *
+ * @package PhpMyAdmin\Controllers
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers;
@@ -10,8 +15,7 @@ use PhpMyAdmin\Charsets\Collation;
 use PhpMyAdmin\CheckUserPrivileges;
 use PhpMyAdmin\Config;
 use PhpMyAdmin\DatabaseInterface;
-use PhpMyAdmin\Git;
-use PhpMyAdmin\Html\Generator;
+use PhpMyAdmin\Display\GitRevision;
 use PhpMyAdmin\LanguageManager;
 use PhpMyAdmin\Message;
 use PhpMyAdmin\RecentFavoriteTable;
@@ -21,76 +25,55 @@ use PhpMyAdmin\Server\Select;
 use PhpMyAdmin\Template;
 use PhpMyAdmin\ThemeManager;
 use PhpMyAdmin\Url;
+use PhpMyAdmin\UserPreferences;
 use PhpMyAdmin\Util;
-use PhpMyAdmin\Version;
 
-use function count;
-use function extension_loaded;
-use function file_exists;
-use function ini_get;
-use function preg_match;
-use function sprintf;
-use function strlen;
-use function strtotime;
-use function trigger_error;
-
-use const E_USER_NOTICE;
-use const E_USER_WARNING;
-use const PHP_VERSION;
-
+/**
+ * Class HomeController
+ * @package PhpMyAdmin\Controllers
+ */
 class HomeController extends AbstractController
 {
-    /** @var Config */
+    /**
+     * @var Config
+     */
     private $config;
 
-    /** @var ThemeManager */
+    /**
+     * @var ThemeManager
+     */
     private $themeManager;
 
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param Config            $config
-     * @param DatabaseInterface $dbi
+     * HomeController constructor.
+     *
+     * @param Response          $response     Response instance
+     * @param DatabaseInterface $dbi          DatabaseInterface instance
+     * @param Template          $template     Template object
+     * @param Config            $config       Config instance
+     * @param ThemeManager      $themeManager ThemeManager instance
      */
-    public function __construct($response, Template $template, $config, ThemeManager $themeManager, $dbi)
+    public function __construct($response, $dbi, Template $template, $config, ThemeManager $themeManager)
     {
-        parent::__construct($response, $template);
+        parent::__construct($response, $dbi, $template);
         $this->config = $config;
         $this->themeManager = $themeManager;
-        $this->dbi = $dbi;
     }
 
-    public function index(): void
+
+    /**
+     * @return string HTML
+     */
+    public function index(): string
     {
-        global $cfg, $server, $collation_connection, $message, $show_query, $db, $table, $err_url;
-
-        if ($this->response->isAjax() && ! empty($_REQUEST['access_time'])) {
-            return;
-        }
-
-        $this->addScriptFiles(['home.js']);
-
-        // This is for $cfg['ShowDatabasesNavigationAsTree'] = false;
-        // See: https://github.com/phpmyadmin/phpmyadmin/issues/16520
-        // The DB is defined here and sent to the JS front-end to refresh the DB tree
-        $db = $_POST['db'] ?? '';
-        $table = '';
-        $show_query = '1';
-        $err_url = Url::getFromRoute('/');
-
-        if ($server > 0 && $this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
+        global $cfg, $server, $collation_connection, $message;
 
         $languageManager = LanguageManager::getInstance();
 
         if (! empty($message)) {
-            $displayMessage = Generator::getMessage($message);
+            $displayMessage = Util::getMessage($message);
             unset($message);
         }
-
         if (isset($_SESSION['partial_logout'])) {
             $partialLogout = Message::success(__(
                 'You were logged out from one server, to logout completely '
@@ -116,6 +99,23 @@ class HomeController extends AbstractController
                 $checkUserPrivileges = new CheckUserPrivileges($this->dbi);
                 $checkUserPrivileges->getPrivileges();
 
+                if (($cfg['Server']['auth_type'] != 'config') && $cfg['ShowChgPassword']) {
+                    $changePassword = $this->template->render('list/item', [
+                        'content' => Util::getImage('s_passwd') . ' ' . __(
+                            'Change password'
+                        ),
+                        'id' => 'li_change_password',
+                        'class' => 'no_bullets',
+                        'url' => [
+                            'href' => 'user_password.php' . Url::getCommon(),
+                            'target' => null,
+                            'id' => 'change_password_anchor',
+                            'class' => 'ajax',
+                        ],
+                        'mysql_help_page' => null,
+                    ]);
+                }
+
                 $charsets = Charsets::getCharsets($this->dbi, $cfg['Server']['DisableIS']);
                 $collations = Charsets::getCollations($this->dbi, $cfg['Server']['DisableIS']);
                 $charsetsList = [];
@@ -130,19 +130,38 @@ class HomeController extends AbstractController
                             'is_selected' => $collation_connection === $collation->getName(),
                         ];
                     }
-
                     $charsetsList[] = [
                         'name' => $charset->getName(),
                         'description' => $charset->getDescription(),
                         'collations' => $collationsList,
                     ];
                 }
+
+                $userPreferences = $this->template->render('list/item', [
+                    'content' => Util::getImage('b_tblops') . ' ' . __(
+                        'More settings'
+                    ),
+                    'id' => 'li_user_preferences',
+                    'class' => 'no_bullets',
+                    'url' => [
+                        'href' => 'prefs_manage.php' . Url::getCommon(),
+                        'target' => null,
+                        'id' => null,
+                        'class' => null,
+                    ],
+                    'mysql_help_page' => null,
+                ]);
             }
         }
 
         $languageSelector = '';
         if (empty($cfg['Lang']) && $languageManager->hasChoice()) {
             $languageSelector = $languageManager->getSelectorDisplay($this->template);
+        }
+
+        $themeSelection = '';
+        if ($cfg['ThemeManager']) {
+            $themeSelection = $this->themeManager->getHtmlSelectBox();
         }
 
         $databaseServer = [];
@@ -154,11 +173,9 @@ class HomeController extends AbstractController
                     $hostInfo .= ' (';
                 }
             }
-
             if ($cfg['ShowServerInfo'] || empty($cfg['Server']['verbose'])) {
                 $hostInfo .= $this->dbi->getHostInfo();
             }
-
             if (! empty($cfg['Server']['verbose']) && $cfg['ShowServerInfo']) {
                 $hostInfo .= ')';
             }
@@ -167,7 +184,7 @@ class HomeController extends AbstractController
             $databaseServer = [
                 'host' => $hostInfo,
                 'type' => Util::getServerType(),
-                'connection' => Generator::getServerSSL(),
+                'connection' => Util::getServerSSL(),
                 'version' => $this->dbi->getVersionString() . ' - ' . $this->dbi->getVersionComment(),
                 'protocol' => $this->dbi->getProtoInfo(),
                 'user' => $this->dbi->fetchValue('SELECT USER();'),
@@ -190,12 +207,25 @@ class HomeController extends AbstractController
                 $webServer['php_version'] = PHP_VERSION;
             }
         }
+        if ($cfg['ShowPhpInfo']) {
+            $phpInfo = $this->template->render('list/item', [
+                'content' => __('Show PHP information'),
+                'id' => 'li_phpinfo',
+                'class' => null,
+                'url' => [
+                    'href' => 'phpinfo.php' . Url::getCommon(),
+                    'target' => '_blank',
+                    'id' => null,
+                    'class' => null,
+                ],
+                'mysql_help_page' => null,
+            ]);
+        }
 
         $relation = new Relation($this->dbi);
         if ($server > 0) {
             $cfgRelation = $relation->getRelationsParam();
-            if (
-                ! $cfgRelation['allworks']
+            if (! $cfgRelation['allworks']
                 && $cfg['PmaNoRelation_DisableWarning'] == false
             ) {
                 $messageText = __(
@@ -210,100 +240,97 @@ class HomeController extends AbstractController
                             . 'to set it up there.'
                         );
                 }
-
                 $messageInstance = Message::notice($messageText);
-                $messageInstance->addParamHtml(
-                    '<a href="' . Url::getFromRoute('/check-relations')
-                    . '" data-post="' . Url::getCommon() . '">'
-                );
+                $messageInstance->addParamHtml('<a href="./chk_rel.php" data-post="' . Url::getCommon() . '">');
                 $messageInstance->addParamHtml('</a>');
                 /* Show error if user has configured something, notice elsewhere */
                 if (! empty($cfg['Servers'][$server]['pmadb'])) {
                     $messageInstance->isError(true);
                 }
-
                 $configStorageMessage = $messageInstance->getDisplay();
             }
         }
 
         $this->checkRequirements();
 
-        $git = new Git($this->config);
-
-        $this->render('home/index', [
+        return $this->template->render('home/index', [
             'message' => $displayMessage ?? '',
             'partial_logout' => $partialLogout ?? '',
-            'is_git_revision' => $git->isGitRevision(),
+            'is_git_revision' => $this->config->isGitRevision(),
             'server' => $server,
             'sync_favorite_tables' => $syncFavoriteTables,
             'has_server' => $hasServer,
             'is_demo' => $cfg['DBG']['demo'],
             'has_server_selection' => $hasServerSelection ?? false,
             'server_selection' => $serverSelection ?? '',
-            'has_change_password_link' => $cfg['Server']['auth_type'] !== 'config' && $cfg['ShowChgPassword'],
+            'change_password' => $changePassword ?? '',
             'charsets' => $charsetsList ?? [],
             'language_selector' => $languageSelector,
+            'theme_selection' => $themeSelection,
+            'user_preferences' => $userPreferences ?? '',
             'database_server' => $databaseServer,
             'web_server' => $webServer,
-            'show_php_info' => $cfg['ShowPhpInfo'],
+            'php_info' => $phpInfo ?? '',
             'is_version_checked' => $cfg['VersionCheck'],
-            'phpmyadmin_version' => Version::VERSION,
-            'phpmyadmin_major_version' => Version::SERIES,
+            'phpmyadmin_version' => PMA_VERSION,
             'config_storage_message' => $configStorageMessage ?? '',
-            'has_theme_manager' => $cfg['ThemeManager'],
-            'themes' => $this->themeManager->getThemesArray(),
         ]);
     }
 
-    public function setCollationConnection(): void
+    /**
+     * @param array $params Request parameters
+     * @return void
+     */
+    public function setTheme(array $params): void
+    {
+        $this->themeManager->setActiveTheme($params['set_theme']);
+        $this->themeManager->setThemeCookie();
+
+        $userPreferences = new UserPreferences();
+        $preferences = $userPreferences->load();
+        $preferences['config_data']['ThemeDefault'] = $params['set_theme'];
+        $userPreferences->save($preferences['config_data']);
+    }
+
+    /**
+     * @param array $params Request parameters
+     * @return void
+     */
+    public function setCollationConnection(array $params): void
     {
         $this->config->setUserValue(
             null,
             'DefaultConnectionCollation',
-            $_POST['collation_connection'],
+            $params['collation_connection'],
             'utf8mb4_unicode_ci'
         );
-
-        $this->response->header('Location: index.php?route=/' . Url::getCommonRaw([], '&'));
     }
 
-    public function reloadRecentTablesList(): void
+    /**
+     * @return array JSON
+     */
+    public function reloadRecentTablesList(): array
     {
-        if (! $this->response->isAjax()) {
-            return;
-        }
-
-        $this->response->addJSON([
+        return [
             'list' => RecentFavoriteTable::getInstance('recent')->getHtmlList(),
-        ]);
+        ];
     }
 
-    public function gitRevision(): void
+    /**
+     * @return string HTML
+     */
+    public function gitRevision(): string
     {
-        if (! $this->response->isAjax()) {
-            return;
-        }
-
-        $git = new Git($this->config);
-
-        if (! $git->isGitRevision()) {
-            return;
-        }
-
-        $commit = $git->checkGitRevision();
-
-        if (! $this->config->get('PMA_VERSION_GIT') || $commit === null) {
-            $this->response->setRequestStatus(false);
-
-            return;
-        }
-
-        $commit['author']['date'] = Util::localisedDate(strtotime($commit['author']['date']));
-        $commit['committer']['date'] = Util::localisedDate(strtotime($commit['committer']['date']));
-
-        $this->render('home/git_info', $commit);
+        return (new GitRevision(
+            $this->response,
+            $this->config,
+            $this->template
+        ))->display();
     }
 
+    /**
+     * @return void
+     */
     private function checkRequirements(): void
     {
         global $cfg, $server, $lang;
@@ -359,8 +386,7 @@ class HomeController extends AbstractController
         /**
          * Check whether LoginCookieValidity is limited by LoginCookieStore.
          */
-        if (
-            $cfg['LoginCookieStore'] != 0
+        if ($cfg['LoginCookieStore'] != 0
             && $cfg['LoginCookieStore'] < $cfg['LoginCookieValidity']
         ) {
             trigger_error(
@@ -376,11 +402,9 @@ class HomeController extends AbstractController
         /**
          * Warning if using the default MySQL controluser account
          */
-        if (
-            isset($cfg['Server']['controluser'], $cfg['Server']['controlpass'])
-            && $server != 0
-            && $cfg['Server']['controluser'] === 'pma'
-            && $cfg['Server']['controlpass'] === 'pmapass'
+        if ($server != 0
+            && isset($cfg['Server']['controluser']) && $cfg['Server']['controluser'] == 'pma'
+            && isset($cfg['Server']['controlpass']) && $cfg['Server']['controlpass'] == 'pmapass'
         ) {
             trigger_error(
                 __(
@@ -434,8 +458,7 @@ class HomeController extends AbstractController
         /**
          * Warning about Suhosin only if its simulation mode is not enabled
          */
-        if (
-            $cfg['SuhosinDisableWarning'] == false
+        if ($cfg['SuhosinDisableWarning'] == false
             && ini_get('suhosin.request.max_value_length')
             && ini_get('suhosin.simulation') == '0'
         ) {
@@ -472,28 +495,23 @@ class HomeController extends AbstractController
          *
          * The data file is created while creating release by ./scripts/remove-incomplete-mo
          */
-        if (! @file_exists(ROOT_PATH . 'libraries/language_stats.inc.php')) {
-            return;
+        if (@file_exists(ROOT_PATH . 'libraries/language_stats.inc.php')) {
+            include ROOT_PATH . 'libraries/language_stats.inc.php';
+            /*
+             * This message is intentionally not translated, because we're
+             * handling incomplete translations here and focus on english
+             * speaking users.
+             */
+            if (isset($GLOBALS['language_stats'][$lang])
+                && $GLOBALS['language_stats'][$lang] < $cfg['TranslationWarningThreshold']
+            ) {
+                trigger_error(
+                    'You are using an incomplete translation, please help to make it '
+                    . 'better by [a@https://www.phpmyadmin.net/translate/'
+                    . '@_blank]contributing[/a].',
+                    E_USER_NOTICE
+                );
+            }
         }
-
-        include ROOT_PATH . 'libraries/language_stats.inc.php';
-        /*
-         * This message is intentionally not translated, because we're
-         * handling incomplete translations here and focus on english
-         * speaking users.
-         */
-        if (
-            ! isset($GLOBALS['language_stats'][$lang])
-            || $GLOBALS['language_stats'][$lang] >= $cfg['TranslationWarningThreshold']
-        ) {
-            return;
-        }
-
-        trigger_error(
-            'You are using an incomplete translation, please help to make it '
-            . 'better by [a@https://www.phpmyadmin.net/translate/'
-            . '@_blank]contributing[/a].',
-            E_USER_NOTICE
-        );
     }
 }

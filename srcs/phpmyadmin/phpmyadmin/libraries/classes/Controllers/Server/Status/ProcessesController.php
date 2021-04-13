@@ -1,59 +1,29 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Server\Status\ProcessesController
+ *
+ * @package PhpMyAdmin\Controllers
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Server\Status;
 
-use PhpMyAdmin\DatabaseInterface;
-use PhpMyAdmin\Html\Generator;
 use PhpMyAdmin\Message;
-use PhpMyAdmin\Response;
-use PhpMyAdmin\Server\Status\Data;
-use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
 use PhpMyAdmin\Util;
 
-use function array_keys;
-use function count;
-use function mb_strtolower;
-use function strlen;
-use function ucfirst;
-
+/**
+ * Class ProcessesController
+ * @package PhpMyAdmin\Controllers\Server\Status
+ */
 class ProcessesController extends AbstractController
 {
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param Data              $data
-     * @param DatabaseInterface $dbi
+     * @param array $params Request parameters
+     * @return string
      */
-    public function __construct($response, Template $template, $data, $dbi)
+    public function index(array $params): string
     {
-        parent::__construct($response, $template, $data);
-        $this->dbi = $dbi;
-    }
-
-    public function index(): void
-    {
-        global $err_url;
-
-        $params = [
-            'showExecuting' => $_POST['showExecuting'] ?? null,
-            'full' => $_POST['full'] ?? null,
-            'column_name' => $_POST['column_name'] ?? null,
-            'order_by_field' => $_POST['order_by_field'] ?? null,
-            'sort_order' => $_POST['sort_order'] ?? null,
-        ];
-        $err_url = Url::getFromRoute('/');
-
-        if ($this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
-
-        $this->addScriptFiles(['server/status/processes.js']);
-
         $isChecked = false;
         if (! empty($params['showExecuting'])) {
             $isChecked = true;
@@ -69,7 +39,7 @@ class ProcessesController extends AbstractController
 
         $serverProcessList = $this->getList($params);
 
-        $this->render('server/status/processes/index', [
+        return $this->template->render('server/status/processes/index', [
             'url_params' => $urlParams,
             'is_checked' => $isChecked,
             'server_process_list' => $serverProcessList,
@@ -78,34 +48,22 @@ class ProcessesController extends AbstractController
 
     /**
      * Only sends the process list table
+     *
+     * @param array $params Request parameters
+     * @return string
      */
-    public function refresh(): void
+    public function refresh(array $params): string
     {
-        $params = [
-            'showExecuting' => $_POST['showExecuting'] ?? null,
-            'full' => $_POST['full'] ?? null,
-            'column_name' => $_POST['column_name'] ?? null,
-            'order_by_field' => $_POST['order_by_field'] ?? null,
-            'sort_order' => $_POST['sort_order'] ?? null,
-        ];
-
-        if (! $this->response->isAjax()) {
-            return;
-        }
-
-        $this->response->addHTML($this->getList($params));
+        return $this->getList($params);
     }
 
     /**
      * @param array $params Request parameters
+     * @return array
      */
-    public function kill(array $params): void
+    public function kill(array $params): array
     {
-        if (! $this->response->isAjax()) {
-            return;
-        }
-
-        $kill = (int) $params['id'];
+        $kill = (int) $params['kill'];
         $query = $this->dbi->getKillQuery($kill);
 
         if ($this->dbi->tryQuery($query)) {
@@ -122,14 +80,17 @@ class ProcessesController extends AbstractController
             );
             $this->response->setRequestStatus(false);
         }
-
         $message->addParam($kill);
 
-        $this->response->addJSON(['message' => $message]);
+        $json = [];
+        $json['message'] = $message;
+
+        return $json;
     }
 
     /**
      * @param array $params Request parameters
+     * @return string
      */
     private function getList(array $params): string
     {
@@ -187,8 +148,7 @@ class ProcessesController extends AbstractController
         $sqlQuery = $showFullSql
             ? 'SHOW FULL PROCESSLIST'
             : 'SHOW PROCESSLIST';
-        if (
-            (! empty($params['order_by_field'])
+        if ((! empty($params['order_by_field'])
                 && ! empty($params['sort_order']))
             || ! empty($params['showExecuting'])
         ) {
@@ -197,11 +157,9 @@ class ProcessesController extends AbstractController
             $urlParams['showExecuting'] = $params['showExecuting'];
             $sqlQuery = 'SELECT * FROM `INFORMATION_SCHEMA`.`PROCESSLIST` ';
         }
-
         if (! empty($params['showExecuting'])) {
             $sqlQuery .= ' WHERE state != "" ';
         }
-
         if (! empty($params['order_by_field']) && ! empty($params['sort_order'])) {
             $sqlQuery .= ' ORDER BY '
                 . Util::backquote($params['order_by_field'])
@@ -220,7 +178,6 @@ class ProcessesController extends AbstractController
             if ($is_sorted && $params['sort_order'] === 'ASC') {
                 $column['sort_order'] = 'DESC';
             }
-
             if (isset($params['showExecuting'])) {
                 $column['showExecuting'] = 'on';
             }
@@ -234,34 +191,27 @@ class ProcessesController extends AbstractController
                 'is_full' => false,
             ];
 
-            if (0 !== --$sortableColCount) {
-                continue;
+            if (0 === --$sortableColCount) {
+                $columns[$columnKey]['has_full_query'] = true;
+                if ($showFullSql) {
+                    $columns[$columnKey]['is_full'] = true;
+                }
             }
-
-            $columns[$columnKey]['has_full_query'] = true;
-            if (! $showFullSql) {
-                continue;
-            }
-
-            $columns[$columnKey]['is_full'] = true;
         }
 
         $rows = [];
         while ($process = $this->dbi->fetchAssoc($result)) {
             // Array keys need to modify due to the way it has used
             // to display column values
-            if (
-                (! empty($params['order_by_field']) && ! empty($params['sort_order']))
+            if ((! empty($params['order_by_field']) && ! empty($params['sort_order']))
                 || ! empty($params['showExecuting'])
             ) {
                 foreach (array_keys($process) as $key) {
                     $newKey = ucfirst(mb_strtolower($key));
-                    if ($newKey === $key) {
-                        continue;
+                    if ($newKey !== $key) {
+                        $process[$newKey] = $process[$key];
+                        unset($process[$key]);
                     }
-
-                    $process[$newKey] = $process[$key];
-                    unset($process[$key]);
                 }
             }
 
@@ -274,7 +224,7 @@ class ProcessesController extends AbstractController
                 'time' => $process['Time'],
                 'state' => ! empty($process['State']) ? $process['State'] : '---',
                 'progress' => ! empty($process['Progress']) ? $process['Progress'] : '---',
-                'info' => ! empty($process['Info']) ? Generator::formatSql(
+                'info' => ! empty($process['Info']) ? Util::formatSql(
                     $process['Info'],
                     ! $showFullSql
                 ) : '---',

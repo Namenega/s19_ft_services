@@ -3,9 +3,9 @@
   {% trans 'Binary log' %}
 </h2>
 
-<form action="{{ url('/server/binlog') }}" method="post">
+<form action="server_binlog.php" method="post">
   {{ get_hidden_inputs(url_params) }}
-  <fieldset class="pma-fieldset">
+  <fieldset>
     <legend>
       {% trans 'Select binary log to view' %}
     </legend>
@@ -30,25 +30,25 @@
     {% endif %}
   </fieldset>
 
-  <fieldset class="pma-fieldset tblFooters">
+  <fieldset class="tblFooters">
     <input class="btn btn-primary" type="submit" value="{% trans 'Go' %}">
   </fieldset>
 </form>
 
 {{ sql_message|raw }}
 
-<table class="pma-table" id="binlogTable">
+<table id="binlogTable">
   <thead>
     <tr>
-      <td colspan="6" class="text-center">
+      <td colspan="6" class="center">
         {% if has_previous %}
           {% if has_icons %}
-            <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(previous_params, '') }}" title="
+            <a href="server_binlog.php" data-post="{{ get_common(previous_params, '') }}" title="
                 {%- trans %}Previous{% context %}Previous page{% endtrans %}">
               &laquo;
             </a>
           {% else %}
-            <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(previous_params, '') }}">
+            <a href="server_binlog.php" data-post="{{ get_common(previous_params, '') }}">
               {% trans %}Previous{% context %}Previous page{% endtrans %} &laquo;
             </a>
           {% endif %}
@@ -56,24 +56,24 @@
         {% endif %}
 
         {% if is_full_query %}
-          <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(full_queries_params, '') }}" title="{% trans 'Truncate shown queries' %}">
-            <img src="{{ image('s_partialtext.png') }}" alt="{% trans 'Truncate shown queries' %}">
+          <a href="server_binlog.php" data-post="{{ get_common(full_queries_params, '') }}" title="{% trans 'Truncate shown queries' %}">
+            <img src="{{ image_path }}s_partialtext.png" alt="{% trans 'Truncate shown queries' %}">
           </a>
         {% else %}
-          <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(full_queries_params, '') }}" title="{% trans 'Show full queries' %}">
-            <img src="{{ image('s_fulltext.png') }}" alt="{% trans 'Show full queries' %}">
+          <a href="server_binlog.php" data-post="{{ get_common(full_queries_params, '') }}" title="{% trans 'Show full queries' %}">
+            <img src="{{ image_path }}s_fulltext.png" alt="{% trans 'Show full queries' %}">
           </a>
         {% endif %}
 
         {% if has_next %}
           -
           {% if has_icons %}
-            <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(next_params, '') }}" title="
+            <a href="server_binlog.php" data-post="{{ get_common(next_params, '') }}" title="
                 {%- trans %}Next{% context %}Next page{% endtrans %}">
               &raquo;
             </a>
           {% else %}
-            <a href="{{ url('/server/binlog') }}" data-post="{{ get_common(next_params, '') }}">
+            <a href="server_binlog.php" data-post="{{ get_common(next_params, '') }}">
               {% trans %}Next{% context %}Next page{% endtrans %} &raquo;
             </a>
           {% endif %}
@@ -94,10 +94,10 @@
     {% for value in values %}
       <tr class="noclick">
         <td>{{ value['Log_name'] }}</td>
-        <td class="text-end">{{ value['Pos'] }}</td>
+        <td class="right">{{ value['Pos'] }}</td>
         <td>{{ value['Event_type'] }}</td>
-        <td class="text-end">{{ value['Server_id'] }}</td>
-        <td class="text-end">
+        <td class="right">{{ value['Server_id'] }}</td>
+        <td class="right">
           {{- value['Orig_log_pos'] is defined ? value['Orig_log_pos'] : value['End_log_pos'] -}}
         </td>
         <td>{{ format_sql(value['Info'], not is_full_query) }}</td>

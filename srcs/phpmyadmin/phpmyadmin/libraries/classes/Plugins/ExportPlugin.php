@@ -1,8 +1,10 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Abstract class for the export plugins
+ *
+ * @package PhpMyAdmin
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Plugins;
@@ -12,13 +14,13 @@ use PhpMyAdmin\Properties\Plugins\ExportPluginProperties;
 use PhpMyAdmin\Relation;
 use PhpMyAdmin\Transformations;
 
-use function stripos;
-
 /**
  * Provides a common interface that will have to be implemented by all of the
  * export plugins. Some of the plugins will also implement other public
  * methods, but those are not declared here, because they are not implemented
  * by all export plugins.
+ *
+ * @package PhpMyAdmin
  */
 abstract class ExportPlugin
 {
@@ -30,21 +32,28 @@ abstract class ExportPlugin
      */
     protected $properties;
 
-    /** @var Relation */
+    /**
+     * @var Relation
+     */
     public $relation;
 
-    /** @var Export */
+    /**
+     * @var Export
+     */
     protected $export;
 
-    /** @var Transformations */
+    /**
+     * @var Transformations
+     */
     protected $transformations;
 
+    /**
+     * Constructor
+     */
     public function __construct()
     {
-        global $dbi;
-
-        $this->relation = new Relation($dbi);
-        $this->export = new Export($dbi);
+        $this->relation = new Relation($GLOBALS['dbi']);
+        $this->export = new Export($GLOBALS['dbi']);
         $this->transformations = new Transformations();
     }
 
@@ -114,7 +123,7 @@ abstract class ExportPlugin
     );
 
     /**
-     * The following methods are used in /export or in /database/operations,
+     * The following methods are used in export.php or in db_operations.php,
      * but they are not implemented by all export plugins
      */
 
@@ -128,7 +137,6 @@ abstract class ExportPlugin
      */
     public function exportRoutines($db, array $aliases = [])
     {
-        return true;
     }
 
     /**
@@ -140,24 +148,6 @@ abstract class ExportPlugin
      */
     public function exportEvents($db)
     {
-        return true;
-    }
-
-    /**
-     * Outputs for raw query
-     *
-     * @param string $err_url   the url to go back in case of error
-     * @param string $sql_query the rawquery to output
-     * @param string $crlf      the seperator for a file
-     *
-     * @return bool if succeeded
-     */
-    public function exportRawQuery(
-        string $err_url,
-        string $sql_query,
-        string $crlf
-    ): bool {
-        return false;
     }
 
     /**
@@ -173,7 +163,7 @@ abstract class ExportPlugin
      * @param bool   $relation    whether to include relation comments
      * @param bool   $comments    whether to include the pmadb-style column comments
      *                            as comments in the structure; this is deprecated
-     *                            but the parameter is left here because /export
+     *                            but the parameter is left here because export.php
      *                            calls exportStructure() also for other export
      *                            types which use this parameter
      * @param bool   $mime        whether to include mime comments
@@ -195,7 +185,6 @@ abstract class ExportPlugin
         $dates = false,
         array $aliases = []
     ) {
-        return true;
     }
 
     /**
@@ -212,7 +201,6 @@ abstract class ExportPlugin
         $tables,
         array $metadataTypes
     ) {
-        return true;
     }
 
     /**
@@ -227,7 +215,6 @@ abstract class ExportPlugin
      */
     public function getTableDefStandIn($db, $view, $crlf, $aliases = [])
     {
-        return '';
     }
 
     /**
@@ -240,7 +227,6 @@ abstract class ExportPlugin
      */
     protected function getTriggers($db, $table)
     {
-        return '';
     }
 
     /**
@@ -293,12 +279,9 @@ abstract class ExportPlugin
         if (! empty($aliases[$db]['tables'][$table]['alias'])) {
             $table = $aliases[$db]['tables'][$table]['alias'];
         }
-
-        if (empty($aliases[$db]['alias'])) {
-            return;
+        if (! empty($aliases[$db]['alias'])) {
+            $db = $aliases[$db]['alias'];
         }
-
-        $db = $aliases[$db]['alias'];
     }
 
     /**
@@ -320,48 +303,39 @@ abstract class ExportPlugin
                 $db => $aliases[$db],
             ];
         }
-
         // search each database
         foreach ($aliases as $db_key => $db) {
             // check if id is database and has alias
-            if (
-                stripos($type, 'db') !== false
+            if (false !== stripos($type, 'db')
                 && $db_key === $id
                 && ! empty($db['alias'])
             ) {
                 return $db['alias'];
             }
-
             if (empty($db['tables'])) {
                 continue;
             }
-
             if (! empty($tbl) && isset($db['tables'][$tbl])) {
                 $db['tables'] = [
                     $tbl => $db['tables'][$tbl],
                 ];
             }
-
             // search each of its tables
             foreach ($db['tables'] as $table_key => $table) {
                 // check if id is table and has alias
-                if (
-                    stripos($type, 'tbl') !== false
+                if (false !== stripos($type, 'tbl')
                     && $table_key === $id
                     && ! empty($table['alias'])
                 ) {
                     return $table['alias'];
                 }
-
                 if (empty($table['columns'])) {
                     continue;
                 }
-
                 // search each of its columns
                 foreach ($table['columns'] as $col_key => $col) {
                     // check if id is column
-                    if (
-                        stripos($type, 'col') !== false
+                    if (false !== stripos($type, 'col')
                         && $col_key === $id
                         && ! empty($col)
                     ) {
@@ -401,11 +375,9 @@ abstract class ExportPlugin
             if (! empty($aliases[$db]['tables'][$ftable]['columns'][$ffield])) {
                 $ffield = $aliases[$db]['tables'][$ftable]['columns'][$ffield];
             }
-
             if (! empty($aliases[$db]['tables'][$ftable]['alias'])) {
                 $ftable = $aliases[$db]['tables'][$ftable]['alias'];
             }
-
             $relation = $ftable . ' (' . $ffield . ')';
         }
 

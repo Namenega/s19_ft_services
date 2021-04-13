@@ -1,12 +1,16 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Produce a PDF report (export) from a query
+ *
+ * @package    PhpMyAdmin-Export
+ * @subpackage PDF
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Plugins\Export;
 
+use PhpMyAdmin\Export;
 use PhpMyAdmin\Plugins\Export\Helpers\Pdf;
 use PhpMyAdmin\Plugins\ExportPlugin;
 use PhpMyAdmin\Properties\Options\Groups\OptionsPropertyMainGroup;
@@ -15,22 +19,19 @@ use PhpMyAdmin\Properties\Options\Items\RadioPropertyItem;
 use PhpMyAdmin\Properties\Options\Items\TextPropertyItem;
 use PhpMyAdmin\Properties\Plugins\ExportPluginProperties;
 
-use function class_exists;
-
-// phpcs:disable PSR1.Files.SideEffects
 /**
  * Skip the plugin if TCPDF is not available.
  */
 if (! class_exists('TCPDF')) {
     $GLOBALS['skip_import'] = true;
-
     return;
 }
 
-// phpcs:enable
-
 /**
  * Handles the export for the PDF class
+ *
+ * @package    PhpMyAdmin-Export
+ * @subpackage PDF
  */
 class ExportPdf extends ExportPlugin
 {
@@ -39,15 +40,18 @@ class ExportPdf extends ExportPlugin
      *
      * @var Pdf
      */
-    private $pdf;
+    private $_pdf;
 
     /**
      * PDF Report Title
      *
      * @var string
      */
-    private $pdfReportTitle = '';
+    private $_pdfReportTitle;
 
+    /**
+     * Constructor
+     */
     public function __construct()
     {
         parent::__construct();
@@ -66,10 +70,9 @@ class ExportPdf extends ExportPlugin
     protected function initSpecificVariables()
     {
         if (! empty($_POST['pdf_report_title'])) {
-            $this->pdfReportTitle = $_POST['pdf_report_title'];
+            $this->_setPdfReportTitle($_POST['pdf_report_title']);
         }
-
-        $this->setPdf(new Pdf('L', 'pt', 'A3'));
+        $this->_setPdf(new Pdf('L', 'pt', 'A3'));
     }
 
     /**
@@ -90,14 +93,14 @@ class ExportPdf extends ExportPlugin
         // $exportPluginProperties
         // this will be shown as "Format specific options"
         $exportSpecificOptions = new OptionsPropertyRootGroup(
-            'Format Specific Options'
+            "Format Specific Options"
         );
 
         // general options main group
-        $generalOptions = new OptionsPropertyMainGroup('general_opts');
+        $generalOptions = new OptionsPropertyMainGroup("general_opts");
         // create primary items and add them to the group
         $leaf = new TextPropertyItem(
-            'report_title',
+            "report_title",
             __('Report title:')
         );
         $generalOptions->addProperty($leaf);
@@ -106,10 +109,10 @@ class ExportPdf extends ExportPlugin
 
         // what to dump (structure/data/both) main group
         $dumpWhat = new OptionsPropertyMainGroup(
-            'dump_what',
+            "dump_what",
             __('Dump table')
         );
-        $leaf = new RadioPropertyItem('structure_or_data');
+        $leaf = new RadioPropertyItem("structure_or_data");
         $leaf->setValues(
             [
                 'structure'          => __('structure'),
@@ -133,11 +136,15 @@ class ExportPdf extends ExportPlugin
      */
     public function exportHeader()
     {
-        $pdf = $this->getPdf();
+        $pdf_report_title = $this->_getPdfReportTitle();
+        $pdf = $this->_getPdf();
         $pdf->Open();
 
-        $pdf->setTitleFontSize(18);
-        $pdf->setTitleText($this->pdfReportTitle);
+        $attr = [
+            'titleFontSize' => 18,
+            'titleText' => $pdf_report_title,
+        ];
+        $pdf->setAttributes($attr);
         $pdf->setTopMargin(30);
 
         return true;
@@ -150,7 +157,7 @@ class ExportPdf extends ExportPlugin
      */
     public function exportFooter()
     {
-        $pdf = $this->getPdf();
+        $pdf = $this->_getPdf();
 
         // instead of $pdf->Output():
         return $this->export->outputHandler($pdf->getPDFData());
@@ -218,37 +225,20 @@ class ExportPdf extends ExportPlugin
         $db_alias = $db;
         $table_alias = $table;
         $this->initAlias($aliases, $db_alias, $table_alias);
-        $pdf = $this->getPdf();
-        $pdf->setCurrentDb($db);
-        $pdf->setCurrentTable($table);
-        $pdf->setDbAlias($db_alias);
-        $pdf->setTableAlias($table_alias);
-        $pdf->setAliases($aliases);
-        $pdf->setPurpose(__('Dumping data'));
+        $pdf = $this->_getPdf();
+        $attr = [
+            'currentDb'    => $db,
+            'currentTable' => $table,
+            'dbAlias'      => $db_alias,
+            'tableAlias'   => $table_alias,
+            'aliases'      => $aliases,
+            'purpose'      => __('Dumping data'),
+        ];
+        $pdf->setAttributes($attr);
         $pdf->mysqlReport($sql_query);
 
         return true;
-    }
-
-    /**
-     * Outputs result of raw query in PDF format
-     *
-     * @param string $err_url   the url to go back in case of error
-     * @param string $sql_query the rawquery to output
-     * @param string $crlf      the end of line sequence
-     *
-     * @return bool if succeeded
-     */
-    public function exportRawQuery(string $err_url, string $sql_query, string $crlf): bool
-    {
-        $pdf = $this->getPdf();
-        $pdf->setDbAlias('----');
-        $pdf->setTableAlias('----');
-        $pdf->setPurpose(__('Query result data'));
-        $pdf->mysqlReport($sql_query);
-
-        return true;
-    }
+    } // end of the 'PMA_exportData()' function
 
     /**
      * Outputs table structure
@@ -264,7 +254,7 @@ class ExportPdf extends ExportPlugin
      * @param bool   $do_comments whether to include the pmadb-style column
      *                            comments as comments in the structure;
      *                            this is deprecated but the parameter is
-     *                            left here because /export calls
+     *                            left here because export.php calls
      *                            PMA_exportStructure() also for other
      *                            export types which use this parameter
      * @param bool   $do_mime     whether to include mime comments
@@ -288,9 +278,9 @@ class ExportPdf extends ExportPlugin
     ) {
         $db_alias = $db;
         $table_alias = $table;
-        $purpose = '';
+        $purpose = null;
         $this->initAlias($aliases, $db_alias, $table_alias);
-        $pdf = $this->getPdf();
+        $pdf = $this->_getPdf();
         // getting purpose to show at top
         switch ($export_mode) {
             case 'create_table':
@@ -304,15 +294,17 @@ class ExportPdf extends ExportPlugin
                 break;
             case 'stand_in':
                 $purpose = __('Stand in');
-        }
+        } // end switch
 
-        $pdf->setCurrentDb($db);
-        $pdf->setCurrentTable($table);
-        $pdf->setDbAlias($db_alias);
-        $pdf->setTableAlias($table_alias);
-        $pdf->setAliases($aliases);
-        $pdf->setPurpose($purpose);
-
+        $attr = [
+            'currentDb'    => $db,
+            'currentTable' => $table,
+            'dbAlias'      => $db_alias,
+            'tableAlias'   => $table_alias,
+            'aliases'      => $aliases,
+            'purpose'      => $purpose,
+        ];
+        $pdf->setAttributes($attr);
         /**
          * comment display set true as presently in pdf
          * format, no option is present to take user input.
@@ -349,10 +341,11 @@ class ExportPdf extends ExportPlugin
                  * Yet to develop this function
                  * $pdf->getTableDefStandIn($db, $table, $crlf);
                  */
-        }
+        } // end switch
 
         return true;
     }
+
 
     /* ~~~~~~~~~~~~~~~~~~~~ Getters and Setters ~~~~~~~~~~~~~~~~~~~~ */
 
@@ -361,9 +354,9 @@ class ExportPdf extends ExportPlugin
      *
      * @return Pdf
      */
-    private function getPdf()
+    private function _getPdf()
     {
-        return $this->pdf;
+        return $this->_pdf;
     }
 
     /**
@@ -373,8 +366,30 @@ class ExportPdf extends ExportPlugin
      *
      * @return void
      */
-    private function setPdf($pdf)
+    private function _setPdf($pdf)
     {
-        $this->pdf = $pdf;
+        $this->_pdf = $pdf;
+    }
+
+    /**
+     * Gets the PDF report title
+     *
+     * @return string
+     */
+    private function _getPdfReportTitle()
+    {
+        return $this->_pdfReportTitle;
+    }
+
+    /**
+     * Sets the PDF report title
+     *
+     * @param string $pdfReportTitle PDF report title
+     *
+     * @return void
+     */
+    private function _setPdfReportTitle($pdfReportTitle)
+    {
+        $this->_pdfReportTitle = $pdfReportTitle;
     }
 }

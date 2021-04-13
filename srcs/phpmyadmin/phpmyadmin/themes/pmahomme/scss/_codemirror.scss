@@ -2,7 +2,7 @@ $textarea-cols: 40;
 $textarea-rows: 15;
 
 .CodeMirror {
-  height: 20rem;
+  height: ceil($textarea-rows * 1.2em);
   direction: ltr;
 }
 
@@ -11,8 +11,8 @@ $textarea-rows: 15;
 }
 
 .insertRowTable .CodeMirror {
-  min-height: ceil($textarea-rows * 0.6em);
-  min-width: ceil($textarea-cols * 0.6em);
+  height: ceil($textarea-rows * 0.6em);
+  width: ceil($textarea-cols * 0.6em);
   border: 1px solid #a9a9a9;
 }
 
@@ -74,9 +74,9 @@ span {
 
 .autocomplete-column-hint {
   display: inline-block;
-  float: right;
+  float: $right;
   color: #666;
-  margin-left: 1em;
+  margin-#{$left}: 1em;
 }
 
 .CodeMirror-hints {

@@ -1,40 +1,25 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Handles actions related to GIS POLYGON objects
+ *
+ * @package PhpMyAdmin-GIS
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Gis;
 
 use TCPDF;
 
-use function array_merge;
-use function array_push;
-use function array_slice;
-use function count;
-use function explode;
-use function hexdec;
-use function imagecolorallocate;
-use function imagefilledpolygon;
-use function imagestring;
-use function json_encode;
-use function max;
-use function mb_strlen;
-use function mb_strpos;
-use function mb_substr;
-use function min;
-use function pow;
-use function sqrt;
-use function trim;
-
 /**
  * Handles actions related to GIS POLYGON objects
+ *
+ * @package PhpMyAdmin-GIS
  */
 class GisPolygon extends GisGeometry
 {
-    /** @var self */
-    private static $instance;
+    // Hold the singleton instance of the class
+    private static $_instance;
 
     /**
      * A private constructor; prevents direct creation of object.
@@ -49,16 +34,15 @@ class GisPolygon extends GisGeometry
      * Returns the singleton.
      *
      * @return GisPolygon the singleton
-     *
      * @access public
      */
     public static function singleton()
     {
-        if (! isset(self::$instance)) {
-            self::$instance = new GisPolygon();
+        if (! isset(self::$_instance)) {
+            self::$_instance = new GisPolygon();
         }
 
-        return self::$instance;
+        return self::$_instance;
     }
 
     /**
@@ -67,7 +51,6 @@ class GisPolygon extends GisGeometry
      * @param string $spatial spatial data of a row
      *
      * @return array an array containing the min, max values for x and y coordinates
-     *
      * @access public
      */
     public function scaleRow($spatial)
@@ -80,11 +63,11 @@ class GisPolygon extends GisGeometry
         );
 
         // If the polygon doesn't have an inner ring, use polygon itself
-        if (mb_strpos($polygon, '),(') === false) {
+        if (mb_strpos($polygon, "),(") === false) {
             $ring = $polygon;
         } else {
             // Separate outer ring and use it to determine min-max
-            $parts = explode('),(', $polygon);
+            $parts = explode("),(", $polygon);
             $ring = $parts[0];
         }
 
@@ -101,7 +84,6 @@ class GisPolygon extends GisGeometry
      * @param resource    $image      Image object
      *
      * @return resource the modified image object
-     *
      * @access public
      */
     public function prepareRowAsPng(
@@ -126,11 +108,11 @@ class GisPolygon extends GisGeometry
         );
 
         // If the polygon doesn't have an inner polygon
-        if (mb_strpos($polygon, '),(') === false) {
+        if (mb_strpos($polygon, "),(") === false) {
             $points_arr = $this->extractPoints($polygon, $scale_data, true);
         } else {
             // Separate outer and inner polygons
-            $parts = explode('),(', $polygon);
+            $parts = explode("),(", $polygon);
             $outer = $parts[0];
             $inner = array_slice($parts, 1);
 
@@ -171,7 +153,6 @@ class GisPolygon extends GisGeometry
      * @param TCPDF       $pdf        TCPDF instance
      *
      * @return TCPDF the modified TCPDF instance
-     *
      * @access public
      */
     public function prepareRowAsPdf($spatial, ?string $label, $fill_color, array $scale_data, $pdf)
@@ -194,11 +175,11 @@ class GisPolygon extends GisGeometry
         );
 
         // If the polygon doesn't have an inner polygon
-        if (mb_strpos($polygon, '),(') === false) {
+        if (mb_strpos($polygon, "),(") === false) {
             $points_arr = $this->extractPoints($polygon, $scale_data, true);
         } else {
             // Separate outer and inner polygons
-            $parts = explode('),(', $polygon);
+            $parts = explode("),(", $polygon);
             $outer = $parts[0];
             $inner = array_slice($parts, 1);
 
@@ -233,14 +214,13 @@ class GisPolygon extends GisGeometry
      * @param array  $scale_data Array containing data related to scaling
      *
      * @return string the code related to a row in the GIS dataset
-     *
      * @access public
      */
     public function prepareRowAsSvg($spatial, $label, $fill_color, array $scale_data)
     {
         $polygon_options = [
             'name'         => $label,
-            'id'           => $label . $this->getRandomId(),
+            'id'           => $label . mt_rand(),
             'class'        => 'polygon vector',
             'stroke'       => 'black',
             'stroke-width' => 0.5,
@@ -260,18 +240,18 @@ class GisPolygon extends GisGeometry
         $row = '<path d="';
 
         // If the polygon doesn't have an inner polygon
-        if (mb_strpos($polygon, '),(') === false) {
-            $row .= $this->drawPath($polygon, $scale_data);
+        if (mb_strpos($polygon, "),(") === false) {
+            $row .= $this->_drawPath($polygon, $scale_data);
         } else {
             // Separate outer and inner polygons
-            $parts = explode('),(', $polygon);
+            $parts = explode("),(", $polygon);
             $outer = $parts[0];
             $inner = array_slice($parts, 1);
 
-            $row .= $this->drawPath($outer, $scale_data);
+            $row .= $this->_drawPath($outer, $scale_data);
 
             foreach ($inner as $inner_poly) {
-                $row .= $this->drawPath($inner_poly, $scale_data);
+                $row .= $this->_drawPath($inner_poly, $scale_data);
             }
         }
 
@@ -279,7 +259,6 @@ class GisPolygon extends GisGeometry
         foreach ($polygon_options as $option => $val) {
             $row .= ' ' . $option . '="' . trim((string) $val) . '"';
         }
-
         $row .= '/>';
 
         return $row;
@@ -292,37 +271,26 @@ class GisPolygon extends GisGeometry
      * @param string $spatial    GIS POLYGON object
      * @param int    $srid       Spatial reference ID
      * @param string $label      Label for the GIS POLYGON object
-     * @param array  $fill_color Color for the GIS POLYGON object
+     * @param string $fill_color Color for the GIS POLYGON object
      * @param array  $scale_data Array containing data related to scaling
      *
      * @return string JavaScript related to a row in the GIS dataset
-     *
      * @access public
      */
     public function prepareRowAsOl($spatial, $srid, $label, $fill_color, array $scale_data)
     {
-        $fill_opacity = 0.8;
-        array_push($fill_color, $fill_opacity);
-        $fill_style = ['color' => $fill_color];
-        $stroke_style = [
-            'color' => [0,0,0],
-            'width' => 0.5,
+        $style_options = [
+            'strokeColor' => '#000000',
+            'strokeWidth' => 0.5,
+            'fillColor'   => $fill_color,
+            'fillOpacity' => 0.8,
+            'label'       => $label,
+            'fontSize'    => 10,
         ];
-        $row =  'var style = new ol.style.Style({'
-            . 'fill: new ol.style.Fill(' . json_encode($fill_style) . '),'
-            . 'stroke: new ol.style.Stroke(' . json_encode($stroke_style) . ')';
-        if ($label) {
-            $text_style = ['text' => $label];
-            $row .= ',text: new ol.style.Text(' . json_encode($text_style) . ')';
-        }
-
-        $row .= '});';
-
         if ($srid == 0) {
             $srid = 4326;
         }
-
-        $row .= $this->getBoundsForOl($srid, $scale_data);
+        $row = $this->getBoundsForOl($srid, $scale_data);
 
         // Trim to remove leading 'POLYGON((' and trailing '))'
         $polygon
@@ -334,12 +302,12 @@ class GisPolygon extends GisGeometry
             );
 
         // Separate outer and inner polygons
-        $parts = explode('),(', $polygon);
+        $parts = explode("),(", $polygon);
+        $row .= 'vectorLayer.addFeatures(new OpenLayers.Feature.Vector('
+            . $this->getPolygonForOpenLayers($parts, $srid)
+            . ', null, ' . json_encode($style_options) . '));';
 
-        return $row . $this->getPolygonForOpenLayers($parts, $srid)
-            . 'var feature = new ol.Feature({geometry: polygon});'
-            . 'feature.setStyle(style);'
-            . 'vectorLayer.addFeature(feature);';
+        return $row;
     }
 
     /**
@@ -349,10 +317,9 @@ class GisPolygon extends GisGeometry
      * @param array  $scale_data Array containing data related to scaling
      *
      * @return string the code to draw the ring
-     *
      * @access private
      */
-    private function drawPath($polygon, array $scale_data)
+    private function _drawPath($polygon, array $scale_data)
     {
         $points_arr = $this->extractPoints($polygon, $scale_data);
 
@@ -361,7 +328,6 @@ class GisPolygon extends GisGeometry
         foreach ($other_points as $point) {
             $row .= ' L ' . $point[0] . ', ' . $point[1];
         }
-
         $row .= ' Z ';
 
         return $row;
@@ -375,33 +341,32 @@ class GisPolygon extends GisGeometry
      * @param string $empty    Value for empty points
      *
      * @return string WKT with the set of parameters passed by the GIS editor
-     *
      * @access public
      */
     public function generateWkt(array $gis_data, $index, $empty = '')
     {
-        $no_of_lines = $gis_data[$index]['POLYGON']['no_of_lines'] ?? 1;
+        $no_of_lines = isset($gis_data[$index]['POLYGON']['no_of_lines'])
+            ? $gis_data[$index]['POLYGON']['no_of_lines'] : 1;
         if ($no_of_lines < 1) {
             $no_of_lines = 1;
         }
 
         $wkt = 'POLYGON(';
         for ($i = 0; $i < $no_of_lines; $i++) {
-            $no_of_points = $gis_data[$index]['POLYGON'][$i]['no_of_points'] ?? 4;
+            $no_of_points = isset($gis_data[$index]['POLYGON'][$i]['no_of_points'])
+                ? $gis_data[$index]['POLYGON'][$i]['no_of_points'] : 4;
             if ($no_of_points < 4) {
                 $no_of_points = 4;
             }
-
             $wkt .= '(';
             for ($j = 0; $j < $no_of_points; $j++) {
-                $wkt .= (isset($gis_data[$index]['POLYGON'][$i][$j]['x'])
-                        && trim((string) $gis_data[$index]['POLYGON'][$i][$j]['x']) != ''
+                $wkt .= ((isset($gis_data[$index]['POLYGON'][$i][$j]['x'])
+                        && trim((string) $gis_data[$index]['POLYGON'][$i][$j]['x']) != '')
                         ? $gis_data[$index]['POLYGON'][$i][$j]['x'] : $empty)
-                    . ' ' . (isset($gis_data[$index]['POLYGON'][$i][$j]['y'])
-                        && trim((string) $gis_data[$index]['POLYGON'][$i][$j]['y']) != ''
+                    . ' ' . ((isset($gis_data[$index]['POLYGON'][$i][$j]['y'])
+                        && trim((string) $gis_data[$index]['POLYGON'][$i][$j]['y']) != '')
                         ? $gis_data[$index]['POLYGON'][$i][$j]['y'] : $empty) . ',';
             }
-
             $wkt
                 =
                 mb_substr(
@@ -411,7 +376,6 @@ class GisPolygon extends GisGeometry
                 );
             $wkt .= '),';
         }
-
         $wkt
             =
             mb_substr(
@@ -419,8 +383,9 @@ class GisPolygon extends GisGeometry
                 0,
                 mb_strlen($wkt) - 1
             );
+        $wkt .= ')';
 
-        return $wkt . ')';
+        return $wkt;
     }
 
     /**
@@ -429,18 +394,17 @@ class GisPolygon extends GisGeometry
      * @param array $ring array of points forming the ring
      *
      * @return float the area of a closed simple polygon
-     *
      * @access public
      * @static
      */
     public static function area(array $ring)
     {
+
         $no_of_points = count($ring);
 
         // If the last point is same as the first point ignore it
         $last = count($ring) - 1;
-        if (
-            ($ring[0]['x'] == $ring[$last]['x'])
+        if (($ring[0]['x'] == $ring[$last]['x'])
             && ($ring[0]['y'] == $ring[$last]['y'])
         ) {
             $no_of_points--;
@@ -456,7 +420,6 @@ class GisPolygon extends GisGeometry
             $area += $ring[$i]['x'] * $ring[$j]['y'];
             $area -= $ring[$i]['y'] * $ring[$j]['x'];
         }
-
         $area /= 2.0;
 
         return $area;
@@ -469,7 +432,6 @@ class GisPolygon extends GisGeometry
      * @param array $ring array of points forming the ring
      *
      * @return bool whether a set of points represents an outer ring
-     *
      * @access public
      * @static
      */
@@ -477,7 +439,7 @@ class GisPolygon extends GisGeometry
     {
         // If area is negative then it's in clockwise orientation,
         // i.e. it's an outer ring
-        return self::area($ring) < 0;
+        return GisPolygon::area($ring) < 0;
     }
 
     /**
@@ -487,7 +449,6 @@ class GisPolygon extends GisGeometry
      * @param array $polygon array of points forming the ring
      *
      * @return bool whether a given point is inside a given polygon
-     *
      * @access public
      * @static
      */
@@ -495,8 +456,7 @@ class GisPolygon extends GisGeometry
     {
         // If first point is repeated at the end remove it
         $last = count($polygon) - 1;
-        if (
-            ($polygon[0]['x'] == $polygon[$last]['x'])
+        if (($polygon[0]['x'] == $polygon[$last]['x'])
             && ($polygon[0]['y'] == $polygon[$last]['y'])
         ) {
             $polygon = array_slice($polygon, 0, $last);
@@ -545,8 +505,7 @@ class GisPolygon extends GisGeometry
      *
      * @param array $ring array of points forming the ring
      *
-     * @return array|false a point on the surface of the ring
-     *
+     * @return array|bool a point on the surface of the ring
      * @access public
      * @static
      */
@@ -592,11 +551,11 @@ class GisPolygon extends GisGeometry
 
             // One of the points should be inside the polygon,
             // unless epsilon chosen is too large
-            if (self::isPointInsidePolygon($pointA, $ring)) {
+            if (GisPolygon::isPointInsidePolygon($pointA, $ring)) {
                 return $pointA;
             }
 
-            if (self::isPointInsidePolygon($pointB, $ring)) {
+            if (GisPolygon::isPointInsidePolygon($pointB, $ring)) {
                 return $pointB;
             }
 
@@ -615,7 +574,6 @@ class GisPolygon extends GisGeometry
      * @param int    $index Index of the geometry
      *
      * @return array params for the GIS data editor from the value of the GIS column
-     *
      * @access public
      */
     public function generateParams($value, $index = -1)
@@ -640,7 +598,7 @@ class GisPolygon extends GisGeometry
                 mb_strlen($wkt) - 11
             );
         // Separate each linestring
-        $linerings = explode('),(', $polygon);
+        $linerings = explode("),(", $polygon);
         $params[$index]['POLYGON']['no_of_lines'] = count($linerings);
 
         $j = 0;
@@ -652,7 +610,6 @@ class GisPolygon extends GisGeometry
                 $params[$index]['POLYGON'][$j][$i]['x'] = $points_arr[$i][0];
                 $params[$index]['POLYGON'][$j][$i]['y'] = $points_arr[$i][1];
             }
-
             $j++;
         }
 

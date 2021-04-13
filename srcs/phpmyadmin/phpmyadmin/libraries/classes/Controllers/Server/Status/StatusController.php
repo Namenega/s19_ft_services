@@ -1,55 +1,36 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Server\Status\StatusController
+ *
+ * @package PhpMyAdmin\Controllers
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Server\Status;
 
-use PhpMyAdmin\DatabaseInterface;
 use PhpMyAdmin\ReplicationGui;
-use PhpMyAdmin\Response;
-use PhpMyAdmin\Server\Status\Data;
-use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
 use PhpMyAdmin\Util;
-
-use function implode;
+use Throwable;
 
 /**
- * Object the server status page: processes, connections and traffic.
+ * Class StatusController
+ * @package PhpMyAdmin\Controllers\Server\Status
  */
 class StatusController extends AbstractController
 {
-    /** @var ReplicationGui */
-    private $replicationGui;
-
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param Data              $data
-     * @param DatabaseInterface $dbi
+     * @param ReplicationGui $replicationGui ReplicationGui instance
+     *
+     * @return string
+     * @throws Throwable
+     * @throws \Twig\Error\LoaderError
+     * @throws \Twig\Error\RuntimeError
+     * @throws \Twig\Error\SyntaxError
      */
-    public function __construct($response, Template $template, $data, ReplicationGui $replicationGui, $dbi)
+    public function index(ReplicationGui $replicationGui): string
     {
-        parent::__construct($response, $template, $data);
-        $this->replicationGui = $replicationGui;
-        $this->dbi = $dbi;
-    }
-
-    public function index(): void
-    {
-        global $err_url;
-
-        $err_url = Url::getFromRoute('/');
-
-        if ($this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
-
-        $replicationInfo = $this->data->getReplicationInfo();
-        $primaryInfo = $replicationInfo->getPrimaryInfo();
-        $replicaInfo = $replicationInfo->getReplicaInfo();
+        global $replication_info;
 
         $traffic = [];
         $connections = [];
@@ -70,28 +51,30 @@ class StatusController extends AbstractController
 
             $connections = $this->getConnectionsInfo();
 
-            if ($primaryInfo['status']) {
-                $replication .= $this->replicationGui->getHtmlForReplicationStatusTable('master');
-            }
-
-            if ($replicaInfo['status']) {
-                $replication .= $this->replicationGui->getHtmlForReplicationStatusTable('slave');
+            // display replication information
+            if ($replication_info['master']['status']
+                || $replication_info['slave']['status']
+            ) {
+                $replication = $this->getReplicationInfo($replicationGui);
             }
         }
 
-        $this->render('server/status/status/index', [
+        return $this->template->render('server/status/status/index', [
             'is_data_loaded' => $this->data->dataLoaded,
             'network_traffic' => $networkTraffic ?? null,
             'uptime' => $uptime ?? null,
             'start_time' => $startTime ?? null,
             'traffic' => $traffic,
             'connections' => $connections,
-            'is_master' => $primaryInfo['status'],
-            'is_slave' => $replicaInfo['status'],
+            'is_master' => $replication_info['master']['status'],
+            'is_slave' => $replication_info['slave']['status'],
             'replication' => $replication,
         ]);
     }
 
+    /**
+     * @return int
+     */
     private function getStartTime(): int
     {
         return (int) $this->dbi->fetchValue(
@@ -249,5 +232,26 @@ class StatusController extends AbstractController
                 'percentage' => Util::formatNumber(100, 0, 2) . '%',
             ],
         ];
+    }
+
+    /**
+     * @param ReplicationGui $replicationGui ReplicationGui instance
+     *
+     * @return string
+     */
+    private function getReplicationInfo(ReplicationGui $replicationGui): string
+    {
+        global $replication_info, $replication_types;
+
+        $output = '';
+        foreach ($replication_types as $type) {
+            if (isset($replication_info[$type]['status'])
+                && $replication_info[$type]['status']
+            ) {
+                $output .= $replicationGui->getHtmlForReplicationStatusTable($type);
+            }
+        }
+
+        return $output;
     }
 }

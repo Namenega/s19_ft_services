@@ -1,73 +1,49 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Database\SqlController
+ * @package PhpMyAdmin\Controllers\Database
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Database;
 
 use PhpMyAdmin\Config\PageSettings;
-use PhpMyAdmin\Response;
 use PhpMyAdmin\SqlQueryForm;
-use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
-use PhpMyAdmin\Util;
-
-use function htmlspecialchars;
 
 /**
  * Database SQL executor
+ * @package PhpMyAdmin\Controllers\Database
  */
 class SqlController extends AbstractController
 {
-    /** @var SqlQueryForm */
-    private $sqlQueryForm;
-
     /**
-     * @param Response $response
-     * @param string   $db       Database name
+     * @param array        $params       Request parameters
+     * @param SqlQueryForm $sqlQueryForm SqlQueryForm instance
+     *
+     * @return string HTML
      */
-    public function __construct($response, Template $template, $db, SqlQueryForm $sqlQueryForm)
+    public function index(array $params, SqlQueryForm $sqlQueryForm): string
     {
-        parent::__construct($response, $template, $db);
-        $this->sqlQueryForm = $sqlQueryForm;
-    }
+        global $goto, $back;
 
-    public function index(): void
-    {
-        global $goto, $back, $db, $cfg, $err_url;
+        PageSettings::showGroup('Sql');
 
-        $this->addScriptFiles([
-            'makegrid.js',
-            'vendor/jquery/jquery.uitablefilter.js',
-            'vendor/stickyfill.min.js',
-            'sql.js',
-        ]);
-
-        $pageSettings = new PageSettings('Sql');
-        $this->response->addHTML($pageSettings->getErrorHTML());
-        $this->response->addHTML($pageSettings->getHTML());
-
-        Util::checkParameters(['db']);
-
-        $err_url = Util::getScriptNameForOption($cfg['DefaultTabDatabase'], 'database');
-        $err_url .= Url::getCommon(['db' => $db], '&');
-
-        if (! $this->hasDatabase()) {
-            return;
-        }
+        require ROOT_PATH . 'libraries/db_common.inc.php';
 
         /**
          * After a syntax error, we return to this script
          * with the typed query in the textarea.
          */
-        $goto = Url::getFromRoute('/database/sql');
-        $back = $goto;
+        $goto = 'db_sql.php';
+        $back = 'db_sql.php';
 
-        $this->response->addHTML($this->sqlQueryForm->getHtml(
+        return $sqlQueryForm->getHtml(
             true,
             false,
-            isset($_POST['delimiter'])
-                ? htmlspecialchars($_POST['delimiter'])
+            isset($params['delimiter'])
+                ? htmlspecialchars($params['delimiter'])
                 : ';'
-        ));
+        );
     }
 }

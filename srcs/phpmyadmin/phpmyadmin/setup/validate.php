@@ -1,17 +1,17 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Validation callback.
+ *
+ * @package PhpMyAdmin-Setup
  */
-
 declare(strict_types=1);
 
 use PhpMyAdmin\Config\Validator;
 use PhpMyAdmin\Core;
 
 if (! defined('ROOT_PATH')) {
-    // phpcs:disable PSR1.Files.SideEffects
     define('ROOT_PATH', dirname(__DIR__) . DIRECTORY_SEPARATOR);
-    // phpcs:enable
 }
 
 /**
@@ -30,7 +30,6 @@ $values = json_decode($vals);
 if (! ($values instanceof stdClass)) {
     Core::fatalError(__('Wrong data'));
 }
-
 $values = (array) $values;
 $result = Validator::validate($GLOBALS['ConfigFile'], $vids, $values, true);
 if ($result === false) {
@@ -39,5 +38,4 @@ if ($result === false) {
         implode(',', $vids)
     );
 }
-
 echo $result !== true ? json_encode($result) : '';

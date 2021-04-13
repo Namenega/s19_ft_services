@@ -1,5 +1,10 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Server\CollationsController
+ *
+ * @package PhpMyAdmin\Controllers
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Server;
@@ -11,53 +16,62 @@ use PhpMyAdmin\Controllers\AbstractController;
 use PhpMyAdmin\DatabaseInterface;
 use PhpMyAdmin\Response;
 use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
 
 /**
  * Handles viewing character sets and collations
+ *
+ * @package PhpMyAdmin\Controllers
  */
 class CollationsController extends AbstractController
 {
-    /** @var array|null */
+    /**
+     * @var array|null
+     */
     private $charsets;
 
-    /** @var array|null */
+    /**
+     * @var array|null
+     */
     private $collations;
 
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param DatabaseInterface $dbi
+     * CollationsController constructor.
+     *
+     * @param Response          $response   Response object
+     * @param DatabaseInterface $dbi        DatabaseInterface object
+     * @param Template          $template   Template object
      * @param array|null        $charsets   Array of charsets
      * @param array|null        $collations Array of collations
      */
     public function __construct(
         $response,
-        Template $template,
         $dbi,
+        Template $template,
         ?array $charsets = null,
         ?array $collations = null
     ) {
         global $cfg;
 
-        parent::__construct($response, $template);
-        $this->dbi = $dbi;
+        parent::__construct($response, $dbi, $template);
 
-        $this->charsets = $charsets ?? Charsets::getCharsets($this->dbi, $cfg['Server']['DisableIS']);
-        $this->collations = $collations ?? Charsets::getCollations($this->dbi, $cfg['Server']['DisableIS']);
+        $this->charsets = $charsets ?? Charsets::getCharsets(
+            $this->dbi,
+            $cfg['Server']['DisableIS']
+        );
+        $this->collations = $collations ?? Charsets::getCollations(
+            $this->dbi,
+            $cfg['Server']['DisableIS']
+        );
     }
 
-    public function index(): void
+    /**
+     * Index action
+     *
+     * @return string HTML
+     */
+    public function indexAction(): string
     {
-        global $err_url;
-
-        $err_url = Url::getFromRoute('/');
-
-        if ($this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
+        include_once ROOT_PATH . 'libraries/server_common.inc.php';
 
         $charsets = [];
         /** @var Charset $charset */
@@ -79,6 +93,8 @@ class CollationsController extends AbstractController
             ];
         }
 
-        $this->render('server/collations/index', ['charsets' => $charsets]);
+        return $this->template->render('server/collations/index', [
+            'charsets' => $charsets,
+        ]);
     }
 }

@@ -10,6 +10,10 @@
   display: none;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .hide {
   display: none;
 }
@@ -66,6 +70,16 @@ thead th {
   border: 0.1em solid #000;
 }
 
+th.vtop,
+td.vtop {
+  vertical-align: top;
+}
+
+th.vbottom,
+td.vbottom {
+  vertical-align: bottom;
+}
+
 // Common Elements not to be included
 // Hide Navigation and Top Menu bar
 // Hide console
@@ -101,17 +115,24 @@ thead th {
   background-color: #000;
 }
 
+// For the Success message div
+div.success {
+  background-color: #fff;
+}
+
 .sqlOuter {
   color: black;
   background-color: #000;
 }
 
 // For hiding 'Open a New phpMyAdmin Window' button
-// Hide extra menu on /table/structure
+// Hide extra menu on tbl_structure.php
 .ic_window-new,
 .ic_s_cog,
+.sticky_columns tr,
 #structure-action-links,
 #addColumns,
+#topmenu2,
 .cDrop,
 .cEdit,
 .cList,

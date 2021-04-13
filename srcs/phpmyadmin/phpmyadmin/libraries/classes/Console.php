@@ -1,17 +1,23 @@
 <?php
+/* vim: set expandtab sw=4 ts=4 sts=4: */
 /**
  * Used to render the console of PMA's pages
+ *
+ * @package PhpMyAdmin
  */
-
 declare(strict_types=1);
 
 namespace PhpMyAdmin;
 
-use function count;
-use function sprintf;
+use PhpMyAdmin\Bookmark;
+use PhpMyAdmin\Relation;
+use PhpMyAdmin\Template;
+use PhpMyAdmin\Util;
 
 /**
  * Class used to output the console
+ *
+ * @package PhpMyAdmin
  */
 class Console
 {
@@ -21,7 +27,7 @@ class Console
      * @access private
      * @var bool
      */
-    private $isEnabled;
+    private $_isEnabled;
 
     /**
      * Whether we are servicing an ajax request.
@@ -29,12 +35,16 @@ class Console
      * @access private
      * @var bool
      */
-    private $isAjax;
+    private $_isAjax;
 
-    /** @var Relation */
+    /**
+     * @var Relation
+     */
     private $relation;
 
-    /** @var Template */
+    /**
+     * @var Template
+     */
     public $template;
 
     /**
@@ -42,10 +52,8 @@ class Console
      */
     public function __construct()
     {
-        global $dbi;
-
-        $this->isEnabled = true;
-        $this->relation = new Relation($dbi);
+        $this->_isEnabled = true;
+        $this->relation = new Relation($GLOBALS['dbi']);
         $this->template = new Template();
     }
 
@@ -54,34 +62,37 @@ class Console
      * we are servicing an ajax request
      *
      * @param bool $isAjax Whether we are servicing an ajax request
+     *
+     * @return void
      */
     public function setAjax(bool $isAjax): void
     {
-        $this->isAjax = $isAjax;
+        $this->_isAjax = $isAjax;
     }
 
     /**
      * Disables the rendering of the footer
+     *
+     * @return void
      */
     public function disable(): void
     {
-        $this->isEnabled = false;
+        $this->_isEnabled = false;
     }
 
     /**
      * Renders the bookmark content
      *
      * @access public
+     * @return string
      */
     public static function getBookmarkContent(): string
     {
-        global $dbi;
-
         $template = new Template();
         $cfgBookmark = Bookmark::getParams($GLOBALS['cfg']['Server']['user']);
         if ($cfgBookmark) {
             $bookmarks = Bookmark::getList(
-                $dbi,
+                $GLOBALS['dbi'],
                 $GLOBALS['cfg']['Server']['user']
             );
             $count_bookmarks = count($bookmarks);
@@ -97,13 +108,12 @@ class Console
             } else {
                 $welcomeMessage = __('No bookmarks');
             }
-
+            unset($count_bookmarks, $private_message, $shared_message);
             return $template->render('console/bookmark_content', [
                 'welcome_message' => $welcomeMessage,
                 'bookmarks' => $bookmarks,
             ]);
         }
-
         return '';
     }
 
@@ -121,15 +131,16 @@ class Console
      * Renders the console
      *
      * @access public
+     * @return string
      */
     public function getDisplay(): string
     {
-        if (! $this->isAjax && $this->isEnabled) {
+        if ((! $this->_isAjax) && $this->_isEnabled) {
             $cfgBookmark = Bookmark::getParams(
                 $GLOBALS['cfg']['Server']['user']
             );
 
-            $image = Html\Generator::getImage('console', __('SQL Query Console'));
+            $image = Util::getImage('console', __('SQL Query Console'));
             $_sql_history = $this->relation->getHistory(
                 $GLOBALS['cfg']['Server']['user']
             );
@@ -142,7 +153,6 @@ class Console
                 'bookmark_content' => $bookmarkContent,
             ]);
         }
-
         return '';
     }
 }

@@ -1,39 +1,46 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\UserPreferences class
+ *
+ * @package PhpMyAdmin
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin;
 
 use PhpMyAdmin\Config\ConfigFile;
 use PhpMyAdmin\Config\Forms\User\UserFormList;
-
-use function array_flip;
-use function array_merge;
-use function basename;
-use function http_build_query;
-use function is_array;
-use function json_decode;
-use function json_encode;
-use function strpos;
-use function time;
-use function urlencode;
+use PhpMyAdmin\Core;
+use PhpMyAdmin\Message;
+use PhpMyAdmin\Relation;
+use PhpMyAdmin\Template;
+use PhpMyAdmin\Url;
+use PhpMyAdmin\Util;
 
 /**
  * Functions for displaying user preferences pages
+ *
+ * @package PhpMyAdmin
  */
 class UserPreferences
 {
-    /** @var Relation */
+    /**
+     * @var Relation
+     */
     private $relation;
 
-    /** @var Template */
+    /**
+     * @var Template
+     */
     public $template;
 
+    /**
+     * Constructor
+     */
     public function __construct()
     {
-        global $dbi;
-
-        $this->relation = new Relation($dbi);
+        $this->relation = new Relation($GLOBALS['dbi']);
         $this->template = new Template();
     }
 
@@ -70,8 +77,6 @@ class UserPreferences
      */
     public function load()
     {
-        global $dbi;
-
         $cfgRelation = $this->relation->getRelationsParam();
         if (! $cfgRelation['userconfigwork']) {
             // no pmadb table, use session storage
@@ -81,23 +86,21 @@ class UserPreferences
                     'ts' => time(),
                 ];
             }
-
             return [
                 'config_data' => $_SESSION['userconfig']['db'],
                 'mtime' => $_SESSION['userconfig']['ts'],
                 'type' => 'session',
             ];
         }
-
         // load configuration from pmadb
         $query_table = Util::backquote($cfgRelation['db']) . '.'
             . Util::backquote($cfgRelation['userconfig']);
         $query = 'SELECT `config_data`, UNIX_TIMESTAMP(`timevalue`) ts'
             . ' FROM ' . $query_table
             . ' WHERE `username` = \''
-            . $dbi->escapeString($cfgRelation['user'])
+            . $GLOBALS['dbi']->escapeString($cfgRelation['user'])
             . '\'';
-        $row = $dbi->fetchSingleRow($query, 'ASSOC', DatabaseInterface::CONNECT_CONTROL);
+        $row = $GLOBALS['dbi']->fetchSingleRow($query, 'ASSOC', DatabaseInterface::CONNECT_CONTROL);
 
         return [
             'config_data' => $row ? json_decode($row['config_data'], true) : [],
@@ -115,10 +118,10 @@ class UserPreferences
      */
     public function save(array $config_array)
     {
-        global $dbi;
-
         $cfgRelation = $this->relation->getRelationsParam();
-        $server = $GLOBALS['server'] ?? $GLOBALS['cfg']['ServerDefault'];
+        $server = isset($GLOBALS['server'])
+            ? $GLOBALS['server']
+            : $GLOBALS['cfg']['ServerDefault'];
         $cache_key = 'server_' . $server;
         if (! $cfgRelation['userconfigwork']) {
             // no pmadb table, use session storage
@@ -129,7 +132,6 @@ class UserPreferences
             if (isset($_SESSION['cache'][$cache_key]['userprefs'])) {
                 unset($_SESSION['cache'][$cache_key]['userprefs']);
             }
-
             return true;
         }
 
@@ -138,10 +140,10 @@ class UserPreferences
             . Util::backquote($cfgRelation['userconfig']);
         $query = 'SELECT `username` FROM ' . $query_table
             . ' WHERE `username` = \''
-            . $dbi->escapeString($cfgRelation['user'])
+            . $GLOBALS['dbi']->escapeString($cfgRelation['user'])
             . '\'';
 
-        $has_config = $dbi->fetchValue(
+        $has_config = $GLOBALS['dbi']->fetchValue(
             $query,
             0,
             0,
@@ -151,41 +153,37 @@ class UserPreferences
         if ($has_config) {
             $query = 'UPDATE ' . $query_table
                 . ' SET `timevalue` = NOW(), `config_data` = \''
-                . $dbi->escapeString($config_data)
+                . $GLOBALS['dbi']->escapeString($config_data)
                 . '\''
                 . ' WHERE `username` = \''
-                . $dbi->escapeString($cfgRelation['user'])
+                . $GLOBALS['dbi']->escapeString($cfgRelation['user'])
                 . '\'';
         } else {
             $query = 'INSERT INTO ' . $query_table
                 . ' (`username`, `timevalue`,`config_data`) '
                 . 'VALUES (\''
-                . $dbi->escapeString($cfgRelation['user']) . '\', NOW(), '
-                . '\'' . $dbi->escapeString($config_data) . '\')';
+                . $GLOBALS['dbi']->escapeString($cfgRelation['user']) . '\', NOW(), '
+                . '\'' . $GLOBALS['dbi']->escapeString($config_data) . '\')';
         }
-
         if (isset($_SESSION['cache'][$cache_key]['userprefs'])) {
             unset($_SESSION['cache'][$cache_key]['userprefs']);
         }
-
-        if (! $dbi->tryQuery($query, DatabaseInterface::CONNECT_CONTROL)) {
+        if (! $GLOBALS['dbi']->tryQuery($query, DatabaseInterface::CONNECT_CONTROL)) {
             $message = Message::error(__('Could not save configuration'));
             $message->addMessage(
                 Message::rawError(
-                    $dbi->getError(DatabaseInterface::CONNECT_CONTROL)
+                    $GLOBALS['dbi']->getError(DatabaseInterface::CONNECT_CONTROL)
                 ),
                 '<br><br>'
             );
-
             return $message;
         }
-
         return true;
     }
 
     /**
      * Returns a user preferences array filtered by $cfg['UserprefsDisallow']
-     * (exclude list) and keys from user preferences form (allow list)
+     * (blacklist) and keys from user preferences form (whitelist)
      *
      * @param array $config_data path => value pairs
      *
@@ -194,22 +192,20 @@ class UserPreferences
     public function apply(array $config_data)
     {
         $cfg = [];
-        $excludeList = array_flip($GLOBALS['cfg']['UserprefsDisallow']);
-        $allowList = array_flip(UserFormList::getFields());
-        // allow some additional fields which are custom handled
-        $allowList['ThemeDefault'] = true;
-        $allowList['lang'] = true;
-        $allowList['Server/hide_db'] = true;
-        $allowList['Server/only_db'] = true;
-        $allowList['2fa'] = true;
+        $blacklist = array_flip($GLOBALS['cfg']['UserprefsDisallow']);
+        $whitelist = array_flip(UserFormList::getFields());
+        // whitelist some additional fields which are custom handled
+        $whitelist['ThemeDefault'] = true;
+        $whitelist['lang'] = true;
+        $whitelist['Server/hide_db'] = true;
+        $whitelist['Server/only_db'] = true;
+        $whitelist['2fa'] = true;
         foreach ($config_data as $path => $value) {
-            if (! isset($allowList[$path]) || isset($excludeList[$path])) {
+            if (! isset($whitelist[$path]) || isset($blacklist[$path])) {
                 continue;
             }
-
             Core::arrayWrite($path, $cfg, $value);
         }
-
         return $cfg;
     }
 
@@ -228,15 +224,14 @@ class UserPreferences
     {
         $prefs = $this->load();
         if ($value === $default_value) {
-            if (! isset($prefs['config_data'][$path])) {
+            if (isset($prefs['config_data'][$path])) {
+                unset($prefs['config_data'][$path]);
+            } else {
                 return true;
             }
-
-            unset($prefs['config_data'][$path]);
         } else {
             $prefs['config_data'][$path] = $value;
         }
-
         return $this->save($prefs['config_data']);
     }
 
@@ -259,13 +254,11 @@ class UserPreferences
         if (is_array($params)) {
             $url_params = array_merge($params, $url_params);
         }
-
         if ($hash) {
             $hash = '#' . urlencode($hash);
         }
-
         Core::sendHeaderLocation('./' . $file_name
-            . Url::getCommonRaw($url_params, strpos($file_name, '?') === false ? '?' : '&') . $hash);
+            . Url::getCommonRaw($url_params) . $hash);
     }
 
     /**
@@ -276,12 +269,10 @@ class UserPreferences
      */
     public function autoloadGetHeader()
     {
-        if (
-            isset($_REQUEST['prefs_autoload'])
-            && $_REQUEST['prefs_autoload'] === 'hide'
+        if (isset($_REQUEST['prefs_autoload'])
+            && $_REQUEST['prefs_autoload'] == 'hide'
         ) {
             $_SESSION['userprefs_autoload'] = true;
-
             return '';
         }
 

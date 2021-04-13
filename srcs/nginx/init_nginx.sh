@@ -8,4 +8,4 @@ telegraf &
 /usr/sbin/sshd
 
 #Permet de run NGINX en avant-plan
-nginx -g "daemon off;"
+nginx -g 'daemon off;'

@@ -94,7 +94,7 @@ echo "#################${NC}\n"
 
 echo "\n### ${GREEN}FTPS docker build${NC} ###\n"
 
-docker build -t ftps_service srcs/ftps/. --build-arg EXTERNAL_IP=192.168.1.240 --build-arg FTPS_USERNAME=$FTPS_USERNAME --build-arg FTPS_PASSWORD=$FTPS_PASSWORD
+docker build -t ftps_service srcs/ftps/. --build-arg EXTERNAL_IP=192.168.99.240 --build-arg FTPS_USERNAME=$FTPS_USERNAME --build-arg FTPS_PASSWORD=$FTPS_PASSWORD
 
 echo "\n### ${GREEN}FTPS Creating Object${NC} ###\n"
 

@@ -1,26 +1,24 @@
 <?php
-
-declare(strict_types=1);
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Database\Designer\DesignerTable class
+ *
+ * @package PhpMyAdmin-Designer
+ */
 namespace PhpMyAdmin\Database\Designer;
 
 use PhpMyAdmin\Util;
 
 /**
  * Common functions for Designer
+ *
+ * @package PhpMyAdmin-Designer
  */
 class DesignerTable
 {
-    /** @var string */
     private $tableName;
-
-    /** @var string */
     private $databaseName;
-
-    /** @var string */
     private $tableEngine;
-
-    /** @var string|null */
     private $displayField;
 
     /**
@@ -45,6 +43,8 @@ class DesignerTable
 
     /**
      * The table engine supports or not foreign keys
+     *
+     * @return bool
      */
     public function supportsForeignkeys(): bool
     {
@@ -53,6 +53,8 @@ class DesignerTable
 
     /**
      * Get the database name
+     *
+     * @return string
      */
     public function getDatabaseName(): string
     {
@@ -61,6 +63,8 @@ class DesignerTable
 
     /**
      * Get the table name
+     *
+     * @return string
      */
     public function getTableName(): string
     {
@@ -69,6 +73,8 @@ class DesignerTable
 
     /**
      * Get the table engine
+     *
+     * @return string
      */
     public function getTableEngine(): string
     {
@@ -77,14 +83,18 @@ class DesignerTable
 
     /**
      * Get the displayed field
+     *
+     * @return string
      */
-    public function getDisplayField(): ?string
+    public function getDisplayField()
     {
         return $this->displayField;
     }
 
     /**
      * Get the db and table separated with a dot
+     *
+     * @return string
      */
     public function getDbTableString(): string
     {

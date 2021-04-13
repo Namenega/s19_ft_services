@@ -1,44 +1,43 @@
 <?php
-
+/* vim: set expandtab sw=4 ts=4 sts=4: */
+/**
+ * Holds the PhpMyAdmin\Controllers\Server\BinlogController
+ *
+ * @package PhpMyAdmin\Controllers
+ */
 declare(strict_types=1);
 
 namespace PhpMyAdmin\Controllers\Server;
 
 use PhpMyAdmin\Controllers\AbstractController;
 use PhpMyAdmin\DatabaseInterface;
-use PhpMyAdmin\Html\Generator;
 use PhpMyAdmin\Message;
 use PhpMyAdmin\Response;
 use PhpMyAdmin\Template;
-use PhpMyAdmin\Url;
 use PhpMyAdmin\Util;
-
-use function array_key_exists;
 
 /**
  * Handles viewing binary logs
+ *
+ * @package PhpMyAdmin\Controllers
  */
 class BinlogController extends AbstractController
 {
     /**
-     * binary log files
-     *
-     * @var array
+     * array binary log files
      */
     protected $binaryLogs;
 
-    /** @var DatabaseInterface */
-    private $dbi;
-
     /**
-     * @param Response          $response
-     * @param DatabaseInterface $dbi
+     * Constructs BinlogController
+     *
+     * @param Response          $response Response object
+     * @param DatabaseInterface $dbi      DatabaseInterface object
+     * @param Template          $template Template object
      */
-    public function __construct($response, Template $template, $dbi)
+    public function __construct($response, $dbi, Template $template)
     {
-        parent::__construct($response, $template);
-        $this->dbi = $dbi;
-
+        parent::__construct($response, $dbi, $template);
         $this->binaryLogs = $this->dbi->fetchResult(
             'SHOW MASTER LOGS',
             'Log_name',
@@ -48,26 +47,23 @@ class BinlogController extends AbstractController
         );
     }
 
-    public function index(): void
+    /**
+     * Index action
+     *
+     * @param array $params Request params
+     *
+     * @return string
+     */
+    public function indexAction(array $params): string
     {
-        global $cfg, $err_url;
+        global $cfg, $pmaThemeImage;
 
-        $params = [
-            'log' => $_POST['log'] ?? null,
-            'pos' => $_POST['pos'] ?? null,
-            'is_full_query' => $_POST['is_full_query'] ?? null,
-        ];
-        $err_url = Url::getFromRoute('/');
-
-        if ($this->dbi->isSuperUser()) {
-            $this->dbi->selectDb('mysql');
-        }
+        include_once ROOT_PATH . 'libraries/server_common.inc.php';
 
         $position = ! empty($params['pos']) ? (int) $params['pos'] : 0;
 
         $urlParams = [];
-        if (
-            isset($params['log'])
+        if (isset($params['log'])
             && array_key_exists($params['log'], $this->binaryLogs)
         ) {
             $urlParams['log'] = $params['log'];
@@ -100,12 +96,10 @@ class BinlogController extends AbstractController
                 $previousParams['pos'] = $position - $cfg['MaxRows'];
             }
         }
-
         $fullQueriesParams['is_full_query'] = 1;
         if ($isFullQuery) {
             unset($fullQueriesParams['is_full_query']);
         }
-
         if ($numRows >= $cfg['MaxRows']) {
             $nextParams['pos'] = $position + $cfg['MaxRows'];
         }
@@ -115,11 +109,11 @@ class BinlogController extends AbstractController
             $values[] = $value;
         }
 
-        $this->render('server/binlog/index', [
+        return $this->template->render('server/binlog/index', [
             'url_params' => $urlParams,
             'binary_logs' => $this->binaryLogs,
             'log' => $params['log'],
-            'sql_message' => Generator::getMessage(Message::success(), $sqlQuery),
+            'sql_message' => Util::getMessage(Message::success(), $sqlQuery),
             'values' => $values,
             'has_previous' => $position > 0,
             'has_next' => $numRows >= $cfg['MaxRows'],
@@ -128,6 +122,7 @@ class BinlogController extends AbstractController
             'next_params' => $nextParams,
             'has_icons' => Util::showIcons('TableNavigationLinksMode'),
             'is_full_query' => $isFullQuery,
+            'image_path' => $pmaThemeImage,
         ]);
     }
 
@@ -135,6 +130,8 @@ class BinlogController extends AbstractController
      * @param string $log      Binary log file name
      * @param int    $position Position to display
      * @param int    $maxRows  Maximum number of rows
+     *
+     * @return string
      */
     private function getSqlQuery(
         string $log,
@@ -145,7 +142,6 @@ class BinlogController extends AbstractController
         if (! empty($log)) {
             $sqlQuery .= ' IN \'' . $log . '\'';
         }
-
         $sqlQuery .= ' LIMIT ' . $position . ', ' . $maxRows;
 
         return $sqlQuery;
