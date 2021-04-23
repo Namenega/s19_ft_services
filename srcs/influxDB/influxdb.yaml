@@ -45,9 +45,12 @@ metadata:
   labels:
     app: influxdb
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: influxdb
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:

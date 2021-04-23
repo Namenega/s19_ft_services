@@ -6,7 +6,7 @@
 #    By: Nathan <Nathan@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2021/02/27 09:51:44 by Nathan            #+#    #+#              #
-#    Updated: 2021/04/07 16:22:50 by Nathan           ###   ########.fr        #
+#    Updated: 2021/04/22 12:26:51 by Nathan           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -58,7 +58,10 @@ RUN		tar -zxvf grafana-7.4.0.linux-amd64.tar.gz
 RUN		rm -f grafana-7.4.0.linux-amd64.tar.gz
 RUN		mv grafana-7.4.0/ grafana/
 RUN		mv grafana/bin/* /usr/local/bin/
+#RUN		mkdir -p /grafana/data
 ADD		grafana.db /grafana/data/grafana.db
+#RUN 	chmod 777 /grafana/data/
+RUN 	chmod 640 /grafana/data/grafana.db
 
 
 #############################

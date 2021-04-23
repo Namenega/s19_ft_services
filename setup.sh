@@ -84,6 +84,23 @@ echo "\n### ${GREEN}MetalLB Creating Object${NC} ###\n"
 kubectl apply -f srcs/metallb.yaml
 
 
+#########################
+##### MySQL Service #####
+#########################
+
+echo "\n\n${LBLUE}##################"
+echo "# Starting MySQL #"
+echo "##################${NC}\n"
+
+echo "\n### ${GREEN}MySQL docker build${NC} ###\n"
+
+docker build -t mysql_service srcs/mysql/. --build-arg MYSQL_USERNAME=$MYSQL_USERNAME --build-arg MYSQL_PASSWORD=$MYSQL_PASSWORD
+
+echo "\n### ${GREEN}MySQL Creating Object${NC} ###\n"
+
+kubectl apply -f srcs/mysql/mysql.yaml
+
+
 ########################
 ##### FTPS Service #####
 ########################
@@ -99,6 +116,23 @@ docker build -t ftps_service srcs/ftps/. --build-arg EXTERNAL_IP=192.168.99.240 
 echo "\n### ${GREEN}FTPS Creating Object${NC} ###\n"
 
 kubectl apply -f srcs/ftps/ftps.yaml
+
+
+##############################
+##### PhpMyAdmin Service #####
+##############################
+
+echo "\n\n${LBLUE}#######################"
+echo "# Starting PhpMyAdmin #"
+echo "#######################${NC}\n"
+
+echo "\n### ${GREEN}PhpMyAdmin docker build${NC} ###\n"
+
+docker build -t phpmyadmin_service srcs/phpmyadmin/.
+
+echo "\n### ${GREEN}PhpMyAdmin Creating Object${NC} ###\n"
+
+kubectl apply -f srcs/phpmyadmin/phpmyadmin.yaml
 
 
 #############################
@@ -119,37 +153,20 @@ kubectl apply -f srcs/wordpress/wordpress.yaml
 
 
 #########################
-##### MySQL Service #####
+##### NGINX Service #####
 #########################
 
 echo "\n\n${LBLUE}##################"
-echo "# Starting MySQL #"
+echo "# Starting Nginx #"
 echo "##################${NC}\n"
 
-echo "\n### ${GREEN}MySQL docker build${NC} ###\n"
+echo "\n### 11. ${GREEN}Nginx docker build${NC} ###\n"
 
-docker build -t mysql_service srcs/mysql/. --build-arg MYSQL_USERNAME=$MYSQL_USERNAME --build-arg MYSQL_PASSWORD=$MYSQL_PASSWORD
+docker build -t nginx_service srcs/nginx/. --build-arg SSH_USERNAME=$SSH_USERNAME --build-arg SSH_PASSWORD=$SSH_PASSWORD
 
-echo "\n### ${GREEN}MySQL Creating Object${NC} ###\n"
+echo "\n### ${GREEN}Nginx Creating Object${NC} ###\n"
 
-kubectl apply -f srcs/mysql/mysql.yaml
-
-
-##############################
-##### PhpMyAdmin Service #####
-##############################
-
-echo "\n\n${LBLUE}#######################"
-echo "# Starting PhpMyAdmin #"
-echo "#######################${NC}\n"
-
-echo "\n### ${GREEN}PhpMyAdmin docker build${NC} ###\n"
-
-docker build -t phpmyadmin_service srcs/phpmyadmin/.
-
-echo "\n### ${GREEN}PhpMyAdmin Creating Object${NC} ###\n"
-
-kubectl apply -f srcs/phpmyadmin/phpmyadmin.yaml
+kubectl apply -f srcs/nginx/nginx.yaml
 
 
 ############################
@@ -167,23 +184,6 @@ docker build -t influxdb_service srcs/influxdb/.
 echo "\n### ${GREEN}InfluxDB Creating Object${NC} ###\n"
 
 kubectl apply -f srcs/influxdb/influxdb.yaml
-
-
-#########################
-##### NGINX Service #####
-#########################
-
-echo "\n\n${LBLUE}##################"
-echo "# Starting Nginx #"
-echo "##################${NC}\n"
-
-echo "\n### 11. ${GREEN}Nginx docker build${NC} ###\n"
-
-docker build -t nginx_service srcs/nginx/. --build-arg SSH_USERNAME=$SSH_USERNAME --build-arg SSH_PASSWORD=$SSH_PASSWORD
-
-echo "\n### ${GREEN}Nginx Creating Object${NC} ###\n"
-
-kubectl apply -f srcs/nginx/nginx.yaml
 
 
 ###########################
@@ -213,11 +213,9 @@ sleep 10
 #GET WORDPRESS DB AND PUT IT IN srcs/mysql/wordpress.sql
 #
 
-#echo "\n${LBLUE}#########################"
-#echo "# Setting wordpress.sql #"
-#echo "#########################${NC}\n"
+echo "\n${LBLUE}Setting wordpress.sql ...${NC}"
 
-#kubectl exec -i 'kubectl get pods | grep -o "\S*mysql\S*"' -- mysql wordpress -u root < srcs/mysql/wordpress.sql
+kubectl exec -i $(kubectl get pods | grep -o "\S*mysql\S*") -- mysql wordpress -u root < srcs/mysql/wordpress.sql
 
 #
 #OPENING DASHBOARD

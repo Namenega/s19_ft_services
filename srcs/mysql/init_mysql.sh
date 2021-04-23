@@ -15,9 +15,6 @@ mysql_install_db --user=root --ldata=/var/lib/mysql
 #--bootstrap = create the MySQL privilege tables without having to start a full MySQL server.
 mysqld --user=root --bootstrap < /setup/bootstrap.sql
 
-#Setting wordpress database
-mysql --user=root wordpress < /wordpress.sql
-
 #--skip-network = Do not listen for TCP/IP connections at all
 #
 #--datadir = mysql data directory

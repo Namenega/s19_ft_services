@@ -6,7 +6,7 @@
 #    By: Nathan <Nathan@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2021/02/27 09:49:38 by Nathan            #+#    #+#              #
-#    Updated: 2021/04/07 17:36:29 by Nathan           ###   ########.fr        #
+#    Updated: 2021/04/15 14:08:31 by Nathan           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -31,6 +31,9 @@ RUN		apk upgrade
 #
 #Openrc = dependency-based init system for Unix-like computer operating systems
 RUN		apk add openrc
+
+#wget = programme en ligne de commande non interactif de téléchargement de fichiers depuis le Web
+RUN		apk add wget
 RUN		apk add nginx
 
 #installation de php
@@ -56,7 +59,12 @@ ADD		telegraf.conf /etc/telegraf/telegraf.conf
 #############################
 
 RUN		mkdir -p /var/www/wordpress
-ADD		wordpress /var/www/wordpress
+RUN		wget https://wordpress.org/wordpress-5.2.9.tar.gz \
+		&& tar -xvf wordpress-5.2.9.tar.gz \
+		&& mv wordpress/* /var/www/wordpress
+#ADD		wordpress /var/www/wordpress
+COPY	./wp-config.php	var/www/wp-config.php
+
 
 RUN		mkdir -p /run/nginx
 RUN		rm /etc/nginx/conf.d/default.conf
