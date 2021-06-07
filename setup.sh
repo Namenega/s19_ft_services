@@ -21,7 +21,9 @@ echo "\n${LBLUE}###########"
 echo "#  START  #"
 echo "###########${NC}\n"
 
+#
 #UNCOMMENT IF NEEDED
+#
 
 echo "\n### ${GREEN}Delete srcs${NC} ###\n"
 #kubectl delete -f srcs/.
@@ -56,7 +58,7 @@ GRAFANA_PASSWORD=pass
 
 echo "\n### ${GREEN}Start minikube in VBox${NC} ###\n"
 
-minikube start --driver=virtualbox --addons dashboard --addons metallb
+minikube start --driver=virtualbox --memory='3000' --disk-size 10000MB --addons dashboard --addons metallb
 
 
 #
